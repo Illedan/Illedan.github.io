@@ -27,7 +27,8 @@
         </style>
     </head>
 <body>
-
+    <h2 >Drafted cards</h2>
+    <div id="help2">Append _ separated numbers to the url to view cards. Example: ...locm.html?10_5_4_100_160_1_145_60</div>
     <div id="main"></div>
     <div id="graphs">
         <td><div id="cost" style="width: 33%; height: 30%"></div></td>
@@ -249,46 +250,50 @@
         var cardStats = cards.split("\n");
         var url = window.location.href;
         var parts = url.split("?");
-        var nums = parts[1].split("_");
-        for(var i = 0; i < nums.length; i++){
-            var list = document.getElementById("main");
-            var firstname = "a" + i;
-            var x = document.createElement("IMG");
-            var str = nums[i];
-            var pad = "000";
-            var ans = pad.substring(0, pad.length - str.length) + str;
-            x.setAttribute("src", "images/"+ans+".png");
-            try {
+        if(parts.length > 1){
+            var help = document.getElementById("help2");
+            help.setAttribute("hidden", true);
+            var nums = parts[1].split("_");
+            for(var i = 0; i < nums.length; i++){
+                var list = document.getElementById("main");
+                var firstname = "a" + i;
+                var x = document.createElement("IMG");
+                var str = nums[i];
+                var pad = "000";
+                var ans = pad.substring(0, pad.length - str.length) + str;
+                x.setAttribute("src", "images/"+ans+".png");
+                try {
 
-                var stats = cardStats[parseInt(nums[i])-1].split(" ");
-                addItemToArray(costs, stats[4], "Cost");
+                    var stats = cardStats[parseInt(nums[i])-1].split(" ");
+                    addItemToArray(costs, stats[4], "Cost");
 
-                if(stats[3] == 0){ 
-                    addItemToArray(dmgs, stats[5], "Dmg");
-                    addItemToArray(healths, stats[6], "Health");
+                    if(stats[3] == 0){ 
+                        addItemToArray(dmgs, stats[5], "Dmg");
+                        addItemToArray(healths, stats[6], "Health");
+                    }
+
+                    var tooltip = "Number: "+ stats[0] + 
+                                    "\nType: " + stats[3] +
+                                    "\nCost: " + stats[4] +
+                                    "\nAttack: " + stats[5] +
+                                    "\nDefence: " + stats[6] +
+                                    "\nAbilities: " + stats[7] +
+                                    "\nMyHpAdd: " + stats[8] +
+                                    "\nEnemyHpAdd: " + stats[9] +
+                                    "\nCard draw: " + stats[10];
+                    x.setAttribute("title", tooltip);
                 }
+                catch(err) {
+                }
+                x.setAttribute("width", "140");
+                x.setAttribute("height", "170");
+                list.appendChild(x);
+            }
 
-                var tooltip = "Number: "+ stats[0] + 
-                                "\nType: " + stats[3] +
-                                "\nCost: " + stats[4] +
-                                "\nAttack: " + stats[5] +
-                                "\nDefence: " + stats[6] +
-                                "\nAbilities: " + stats[7] +
-                                "\nMyHpAdd: " + stats[8] +
-                                "\nEnemyHpAdd: " + stats[9] +
-                                "\nCard draw: " + stats[10];
-                x.setAttribute("title", tooltip);
-            }
-            catch(err) {
-            }
-            x.setAttribute("width", "140");
-            x.setAttribute("height", "170");
-            list.appendChild(x);
+            createGraph('cost', costs);
+            createGraph('health', healths);
+            createGraph('dmg', dmgs);
         }
-
-        createGraph('cost', costs);
-        createGraph('health', healths);
-        createGraph('dmg', dmgs);
     </script>
 </body>
 </html>
