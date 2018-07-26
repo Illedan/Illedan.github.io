@@ -18,8 +18,65 @@
 <body>
 
     <div id="main"></div>
-
+    <div id="cost" style="width: 100%; height: 20%"></div>
+    <div id="health" style="width: 100%; height: 20%"></div>
+    <div id="dmg" style="width: 100%; height: 20%"></div>
+    <script src="https://cdn.anychart.com/js/8.0.1/anychart-core.min.js"></script>
+    <script src="https://cdn.anychart.com/js/8.0.1/anychart-pie.min.js"></script>
     <script>
+        function findPos(a, obj) {
+            for (var i = 0; i < a.length; i++) {
+                if (a[i].x == obj+"") {
+                    return i;
+                }
+                console.log("not equal " + a[i].x + " " + obj);
+            }
+            return -1;
+        }
+
+        function addItemToArray(array, value, name){
+            var pos = findPos(array, value);
+            if(pos == -1){
+                pos = array.length;
+                array[pos] = { x: value+"", value: 0};
+            }
+
+            console.log(name + " Value:" + value + " Count:" + array[pos].value + " " + array.length);
+            array[pos].value = array[pos].value + 1;
+            console.log(name + " Value:" + value + " Count:" + array[pos].value + " " + array.length);
+        }
+
+        function createGraph(containerName, data){
+                  // set the data
+       //  var data = [
+       //      {x: "White", value: 223553265},
+       //      {x: "Black or African American", value: 38929319},
+       //      {x: "American Indian and Alaska Native", value: 2932248},
+       //      {x: "Asian", value: 14674252},
+       //      {x: "Native Hawaiian and Other Pacific Islander", value: 540013},
+       //      {x: "Some Other Race", value: 19107368},
+       //      {x: "Two or More Races", value: 9009073}
+       //  ];
+
+          // create the chart
+          var chart = anychart.pie();
+
+          // set the chart title
+          chart.title(containerName);
+
+          // add the data
+          chart.data(data);
+
+          // display the chart in the container
+          chart.container(containerName);
+          chart.legend().position("right");
+        // set items layout
+        chart.legend().itemsLayout("vertical");
+        var legend = chart.legend().enabled(false);
+
+          chart.draw();
+        }
+
         var cards = `1 -1 0 0 1 2 1 ------ 1 0 0
 2 -1 0 0 1 1 2 ------ 0 -1 0
 3 -1 0 0 1 2 2 ------ 0 0 0
@@ -181,6 +238,11 @@
 159 -1 0 3 4 0 -3 ------ 3 0 0
 160 -1 0 3 2 0 0 ------ 2 -2 0`;
 
+        var costs = [];
+        var dmgs = [];
+        var healths = [];
+
+
         var cardStats = cards.split("\n");
         var url = window.location.href;
         var parts = url.split("?");
@@ -197,6 +259,15 @@
             try {
 
                 var stats = cardStats[parseInt(nums[i])-1].split(" ");
+                if(stats[3] == 0){
+                    var cost = stats[4];
+                    var attack = stats[5];
+                    var defence = stats[6];
+                    addItemToArray(costs, cost, "Cost");
+                    addItemToArray(dmgs, attack, "Dmg");
+                    addItemToArray(healths, defence, "Health");
+                }
+
                 var tooltip = "Number: "+ stats[0] + 
                                 "\nType: " + stats[3] +
                                 "\nCost: " + stats[4] +
@@ -215,7 +286,13 @@
             x.setAttribute("height", "170");
             list.appendChild(x);
         }
+
+        createGraph('cost', costs);
+        createGraph('health', healths);
+        createGraph('dmg', dmgs);
         
     </script>
+
+
 </body>
 </html>
