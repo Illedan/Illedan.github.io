@@ -261,13 +261,11 @@
             try {
 
                 var stats = cardStats[parseInt(nums[i])-1].split(" ");
-                if(stats[3] == 0){
-                    var cost = stats[4];
-                    var attack = stats[5];
-                    var defence = stats[6];
-                    addItemToArray(costs, cost, "Cost");
-                    addItemToArray(dmgs, attack, "Dmg");
-                    addItemToArray(healths, defence, "Health");
+                addItemToArray(costs, stats[4], "Cost");
+
+                if(stats[3] == 0){ 
+                    addItemToArray(dmgs, stats[5], "Dmg");
+                    addItemToArray(healths, stats[6], "Health");
                 }
 
                 var tooltip = "Number: "+ stats[0] + 
@@ -291,9 +289,6 @@
         createGraph('cost', costs);
         createGraph('health', healths);
         createGraph('dmg', dmgs);
-        
     </script>
-
-
 </body>
 </html>
