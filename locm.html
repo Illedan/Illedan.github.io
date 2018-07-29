@@ -36,7 +36,7 @@
         <td><div id="health" style="width: 33%; height: 30%"></div></td>
     </div>
      
-    
+    <script src="https://canvasjs.com/assets/script/canvasjs.min.js"></script>
     <script src="https://cdn.anychart.com/js/8.0.1/anychart-core.min.js"></script>
     <script src="https://cdn.anychart.com/js/8.0.1/anychart-pie.min.js"></script>
     <script>
@@ -48,6 +48,50 @@
             }
 
             array[pos].value = array[pos].value + 1;
+        }
+
+        function addChartItem(array, value, name){
+            var pos = parseInt(value);
+            if(array[pos] == null){
+                array[pos] = { label: value, y: 0};
+            }
+
+            array[pos].y = array[pos].y + 1;
+        }
+
+        function createChart(containerName, data, size){
+            for(var i = 0; i < size; i++){
+                if(typeof data[i] == 'undefined') data[i] = {y:0, label:""+i};
+            }
+            var chart = new CanvasJS.Chart(containerName, {
+                animationEnabled: true,
+                theme: "light2", // "light1", "light2", "dark1", "dark2"
+                title:{
+                    text: containerName
+                },
+                axisY: {
+                    title: containerName
+                },
+                data: [{        
+                    type: "column",  
+                    showInLegend: true, 
+                    legendMarkerColor: "grey",
+                    legendText: "MMbbl = one million barrels",
+                    dataPoints: data
+                  // [      
+                  //     { y: 300878, label: "Venezuela" },
+                  //     { y: 266455,  label: "Saudi" },
+                  //     { y: 169709,  label: "Canada" },
+                  //     { y: 158400,  label: "Iran" },
+                  //     { y: 142503,  label: "Iraq" },
+                  //     { y: 101500, label: "Kuwait" },
+                  //     { y: 97800,  label: "UAE" },
+                  //     { y: 80000,  label: "Russia" }
+                  // ]
+                }]
+            });
+            chart.render();
+
         }
 
         function createGraph(containerName, data){
@@ -265,11 +309,11 @@
                 try {
 
                     var stats = cardStats[parseInt(nums[i])-1].split(" ");
-                    addItemToArray(costs, stats[4], "Cost");
+                    addChartItem(costs, stats[4], "Cost");
 
                     if(stats[3] == 0){ 
-                        addItemToArray(dmgs, stats[5], "Dmg");
-                        addItemToArray(healths, stats[6], "Health");
+                        addChartItem(dmgs, stats[5], "Dmg");
+                        addChartItem(healths, stats[6], "Health");
                     }
 
                     var tooltip = "Number: "+ stats[0] + 
@@ -290,10 +334,15 @@
                 list.appendChild(x);
             }
 
-            createGraph('cost', costs);
-            createGraph('health', healths);
-            createGraph('dmg', dmgs);
+            createChart('cost', costs, 12);
+            createChart('health', healths, 12);
+            createChart('dmg', dmgs, 12);
         }
+
+
+
+
+
     </script>
 </body>
 </html>
