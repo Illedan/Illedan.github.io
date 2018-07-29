@@ -59,13 +59,13 @@
             array[pos].y = array[pos].y + 1;
         }
 
-        function createChart(containerName, data, size){
+        function createChart(containerName, data, size, name){
             for(var i = 0; i < size; i++){
                 if(typeof data[i] == 'undefined') data[i] = {y:0, label:""+i};
             }
             var chart = new CanvasJS.Chart(containerName, {
                 animationEnabled: true,
-                theme: "light2", // "light1", "light2", "dark1", "dark2"
+                theme: "light", // "light1", "light2", "dark1", "dark2"
                 title:{
                     text: containerName
                 },
@@ -76,7 +76,7 @@
                     type: "column",  
                     showInLegend: true, 
                     legendMarkerColor: "grey",
-                    legendText: "MMbbl = one million barrels",
+                    legendText: name,
                     dataPoints: data
                   // [      
                   //     { y: 300878, label: "Venezuela" },
@@ -334,9 +334,9 @@
                 list.appendChild(x);
             }
 
-            createChart('cost', costs, 12);
-            createChart('health', healths, 12);
-            createChart('dmg', dmgs, 12);
+            createChart('cost', costs, 12, "Of every card");
+            createChart('health', healths, 12, "Only units");
+            createChart('dmg', dmgs, 12, "Only units");
         }
 
 
