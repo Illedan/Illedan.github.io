@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <style> 
+
+            img{
+                display: block;
+                margin-left: auto;
+                margin-right: auto;
+                margin-top: auto;
+                margin-bottom: auto;
+                height: 40%;
+                width: 50%;
+                max-width: 1000px;
+                min-width: 400px;
+                padding-right: 5%;
+            }
+            html, body {
+                height: 100%;
+            }
+
+            html {
+                display: table;
+                margin: auto;
+            }
+
+            body {
+                display: table-cell;
+                vertical-align: middle;
+            }
+
+        </style>
+    </head>
+<body style="background-color:whitesmoke;">
+    <div class="content">
+        <img src="images/DIPS_ArenaLogo.png" />
+        <h3 style="text-align: center; color: #343434; font-size: 3vw; font-weight: lighter;">DIPS Arena er i produksjon på Helgelandssykehuset (HSYK) om</h1>
+        <h1 id="demo" style="text-align: center; font-size: 3vw; font-weight: bold;">- dager - timer - minutter - sekunder</h2>
+    </div>
+<script>
+// Set the date we're counting down to
+var countDownDate = new Date("May 3, 2020 12:00:00").getTime();
+
+// Update the count down every 1 second
+var x = setInterval(function() {
+
+  // Get today's date and time
+  var now = new Date().getTime();
+
+  // Find the distance between now and the count down date
+  var distance = countDownDate - now;
+
+  // Time calculations for days, hours, minutes and seconds
+  var days = Math.floor(distance / (1000 * 60 * 60 * 24));
+  var hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+  var seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+  // Display the result in the element with id="demo"
+  document.getElementById("demo").innerHTML = days + " dager " + hours + " timer "
+  + minutes + " minutter " + seconds + " sekunder ";
+
+  // If the count down is finished, write some text 
+  if (distance < 0) {
+    clearInterval(x);
+    document.getElementById("demo").innerHTML = "DIPS Arena er i produksjon på Helgelandssykehuset (HSYK)";
+  }
+}, 1000);
+</script>
+</body>
+</html>
