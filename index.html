@@ -682,17 +682,11 @@
         }, 1000);
       }
 
-      document.addEventListener(
-        "touchmove",
-        (e) => {
-          e.preventDefault();
-          const touch = e.touches[0];
-          cursor.style.left = touch.clientX + "px";
-          cursor.style.top = touch.clientY + "px";
-          createSparkle(touch.clientX, touch.clientY);
-        },
-        { passive: false }
-      );
+      document.addEventListener("pointermove", (e) => {
+        cursor.style.left = `${e.clientX}px`;
+        cursor.style.top = `${e.clientY}px`;
+        createSparkle(e.clientX, e.clientY);
+      });
     </script>
   </body>
 </html>
