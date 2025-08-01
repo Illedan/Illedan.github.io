@@ -57,7 +57,7 @@
       .footer {
         margin-top: 50px;
         font-size: 14px;
-        color: #000000;
+        color: white;
       }
 
       a {
@@ -374,10 +374,26 @@
           flex: 1 1 100%;
         }
       }
+      .cursor {
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background-color: rgba(255, 255, 255, 0.5);
+        pointer-events: none;
+        transform: translate(-50%, -50%);
+        z-index: 9999;
+      }
+      .cursor-trail {
+        position: absolute;
+        pointer-events: none;
+        transform: translate(-50%, -50%);
+      }
     </style>
   </head>
   <body>
     <h1 class="wordart">TrollerPact™</h1>
+    <div class="cursor"></div>
 
     <marquee scrollamount="10"
       >🔥🔥 Welcome to the INTERNET'S #1 provider of disruptive synergy cubes
@@ -607,6 +623,76 @@
           }, 100);
         }
       }, 3000);
+    </script>
+    <script>
+      const cursor = document.querySelector(".cursor");
+      const colors = [
+        "#FFD700",
+        "#FF8C00",
+        "#FF4500",
+        "#FB68EE",
+        "#FF69B4",
+        "#00CED1",
+      ];
+      document.addEventListener("mousemove", (e) => {
+        cursor.style.left = e.clientX + "px";
+        cursor.style.top = e.clientY + "px";
+        createSparkle(e.clientX, e.clientY);
+      });
+
+      function createSparkle(x, y) {
+        const sparkle = document.createElement("div");
+        sparkle.classList.add("cursor-trail");
+
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        const size = Math.random() * 15 + 5;
+        const angle = Math.random() * Math.PI * 2;
+        const distance = Math.random() * 50 + 10;
+
+        sparkle.style.backgroundColor = color;
+        sparkle.style.boxShadow = `0 0 10px ${color}`;
+        sparkle.style.width = `${size}px`;
+        sparkle.style.height = `${size}px`;
+        sparkle.style.left = `${x}px`;
+        sparkle.style.top = `${y}px`;
+
+        document.body.appendChild(sparkle);
+
+        sparkle.animate(
+          [
+            {
+              opacity: 1,
+              transform: "translate(-50%,-50%) scale(1)",
+            },
+            {
+              opacity: 0,
+              transform: `translate(calc(-50% + ${
+                Math.cos(angle) * distance
+              }px), calc(-50% + ${Math.sin(angle) * distance}px)) scale(0)`,
+            },
+          ],
+          {
+            duration: 1000,
+            easing: "cubic-bezier(0.4, 0, 0.2, 1)",
+            fill: "forwards",
+          }
+        );
+        setTimeout(() => {
+          sparkle.remove();
+        }, 1000);
+      }
+
+      document.addEventListener(
+        "touchmove",
+        (e) => {
+          e.preventDefault();
+          const touch = e.touches[0];
+          cursor.style.left = touch.clientX + "px";
+          cursor.style.top = touch.clientY + "px";
+          createSparkle(touch.clientX, touch.clientY);
+        },
+        { passive: false }
+      );
     </script>
   </body>
 </html>
