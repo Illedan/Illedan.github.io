@@ -8,6 +8,7 @@
         font-family: "Comic Sans MS", cursive, sans-serif;
         color: #ff00ff;
         text-align: center;
+        margin-right: 58px;
       }
 
       h1 {
@@ -272,6 +273,113 @@
         color: #8f9bb3;
         margin-top: 4px;
       }
+
+      #employees {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 40px;
+        justify-content: center;
+        padding: 30px;
+        box-sizing: border-box;
+      }
+
+      .employee-wrapper {
+        position: relative;
+        flex: 1 1 calc(33% - 60px);
+        max-width: 360px;
+        min-width: 240px;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .hidden-box {
+        background: #666;
+        color: #f0f0f0;
+        padding: 18px 16px;
+        border-radius: 12px;
+        box-shadow: 0 18px 50px -10px rgba(0, 0, 0, 0.6);
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+        font-weight: bold;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        cursor: pointer;
+        position: relative;
+        transition: opacity 0.25s ease, height 0.25s ease, margin 0.25s ease,
+          padding 0.25s ease;
+        overflow: hidden;
+      }
+      .hidden-box .main-text {
+        font-size: 16px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        height: 172px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      .hidden-box .sub-text {
+        font-size: 12px;
+        opacity: 0.85;
+      }
+      .hidden-box.hide {
+        opacity: 0;
+        height: 0;
+        margin: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+      }
+
+      .employee-card {
+        background: #222;
+        padding: 18px 16px;
+        border-radius: 12px;
+        box-shadow: 0 18px 50px -10px rgba(0, 0, 0, 0.6);
+        color: #e5e9ff;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+        transition: opacity 0.3s ease;
+      }
+
+      .employee-card img {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid #555;
+        background: #333;
+      }
+
+      .employee-name {
+        font-size: 18px;
+        font-weight: 700;
+        margin-top: 4px;
+        text-align: center;
+      }
+
+      .employee-desc {
+        font-size: 14px;
+        text-align: center;
+        line-height: 1.3;
+        color: #c8cfe8;
+      }
+
+      @media (max-width: 1080px) {
+        .employee-wrapper {
+          flex: 1 1 calc(50% - 60px);
+        }
+      }
+      @media (max-width: 720px) {
+        .employee-wrapper {
+          flex: 1 1 100%;
+        }
+      }
     </style>
   </head>
   <body>
@@ -320,6 +428,9 @@
           pyramid—it’s a <strong>triangle-based growth architecture™</strong>.
         </p>
       </div>
+
+      <h2>People</h2>
+      <div id="employees"></div>
 
       <h2>
         <a href="https://www.codingame.com/"
@@ -371,6 +482,121 @@
       </div>
     </div>
 
+    <script>
+      const employees = [
+        {
+          name: "BlaiseEbuth",
+          imgUrl: "employees/BE.png",
+          description: "Supreme Executive Overlord of Troll Operations",
+          hide: false,
+        },
+        {
+          name: "Astrobytes",
+          imgUrl: "employees/astro.png",
+          description: "Director of Behavioral Stabilization",
+          hide: false,
+        },
+        {
+          name: "Illedan",
+          imgUrl: "employees/ille.png",
+          description: "Supreme Code Architect",
+          hide: false,
+        },
+        {
+          name: "aCat",
+          imgUrl: "employees/acat.jpg",
+          description: "Tournament Fabricator",
+          hide: false,
+        },
+        {
+          name: "leojean890",
+          imgUrl: "employees/leo.png",
+          description: "Notification Overlord",
+          hide: false,
+        },
+        {
+          name: "dimkadimon",
+          imgUrl: "employees/dim.JPG",
+          description: "Keeper of Competitive Assets",
+          hide: false,
+        },
+        {
+          name: "eulerscheZahl",
+          imgUrl: "employees/euler.gif",
+          description: "Official Amphibian Ambassador",
+          hide: false,
+        },
+        {
+          name: "MSmits",
+          imgUrl: "employees/msmits.jpg",
+          description: "Numerical Truth Seeker",
+          hide: false,
+        },
+        {
+          name: "MSz",
+          imgUrl: "employees/msz.png",
+          description: "Covert Operations Manager",
+          hide: true,
+        },
+      ];
+
+      document.addEventListener("DOMContentLoaded", () => {
+        const container = document.getElementById("employees");
+        if (!container) return;
+
+        employees.forEach((emp) => {
+          const wrapper = document.createElement("div");
+          wrapper.className = "employee-wrapper";
+
+          // create the card
+          const card = document.createElement("div");
+          card.className = "employee-card";
+
+          const img = document.createElement("img");
+          img.src = emp.imgUrl;
+          img.alt = emp.name + " avatar";
+
+          const nameEl = document.createElement("div");
+          nameEl.className = "employee-name";
+          nameEl.textContent = emp.name;
+
+          const desc = document.createElement("div");
+          desc.className = "employee-desc";
+          desc.textContent = emp.description;
+
+          card.appendChild(img);
+          card.appendChild(nameEl);
+          card.appendChild(desc);
+
+          if (emp.hide) {
+            // start hidden: card hidden, show hidden-box placeholder
+            card.style.display = "none";
+
+            const hiddenBox = document.createElement("div");
+            hiddenBox.className = "hidden-box";
+            hiddenBox.innerHTML = `
+          <div class="main-text">HIDING</div>
+        `;
+            hiddenBox.addEventListener("click", () => {
+              hiddenBox.classList.add("hide");
+              setTimeout(() => {
+                hiddenBox.remove();
+              }, 250);
+              // reveal card
+              card.style.display = "";
+              card.style.opacity = "0";
+              requestAnimationFrame(() => {
+                card.style.opacity = "1";
+              });
+            });
+            wrapper.appendChild(hiddenBox);
+          }
+
+          wrapper.appendChild(card);
+          container.appendChild(wrapper);
+        });
+      });
+    </script>
     <script>
       // subtle jitter when expanded to simulate "buggy" feel
       setInterval(() => {
