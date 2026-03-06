@@ -384,6 +384,18 @@
         transform: translate(-50%, -50%);
         z-index: 9999;
       }
+      .sinecure-badge {
+        background: #333;
+        color: #ffcc00;
+        padding: 12px 20px;
+        border: 2px dashed #ff6600;
+        font-size: 16px;
+        font-weight: bold;
+        font-family: "Comic Sans MS", cursive, sans-serif;
+        box-shadow: 10px 10px 15px -3px palevioletred;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
       .cursor-trail {
         position: absolute;
         pointer-events: none;
@@ -442,13 +454,35 @@
       <h2>People</h2>
       <div id="employees"></div>
 
+      <h2>Middle Management</h2>
+      <p style="font-size: 18px; color: #ff00ff;">They schedule meetings about meetings to discuss why the last meeting could have been an email.</p>
+      <div style="display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; padding: 20px;">
+        <div class="sinecure-badge">gaha</div>
+        <div class="sinecure-badge">dbf</div>
+        <div class="sinecure-badge">Lysk</div>
+        <div class="sinecure-badge">Thyl</div>
+      </div>
+
+      <h2>Sinecure Department</h2>
+      <p style="font-size: 18px; color: #ff00ff;">These esteemed individuals hold titles of great importance and do absolutely nothing.</p>
+      <div id="sinecure" style="display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; padding: 20px;">
+        <div class="sinecure-badge">oreshnik</div>
+        <div class="sinecure-badge">Delicious31415</div>
+        <div class="sinecure-badge">aangairbender</div>
+        <div class="sinecure-badge">surgutti</div>
+        <div class="sinecure-badge">I_love_CoC</div>
+        <div class="sinecure-badge">Silverup</div>
+        <div class="sinecure-badge">PRO_G_r_A_m_MER</div>
+        <div class="sinecure-badge">Sirios</div>
+      </div>
+
       <h2>
         <a href="https://www.codingame.com/"
           >Click Here To Download Our Virus</a
         >
       </h2>
-      <h2><a href="#">Buy Stock in TrollerPact</a></h2>
-      <h2><a href="#">Become a TrollerRep™ Today!</a></h2>
+      <h2><a href="#" onclick="openStockForm(); return false;">Buy Stock in TrollerPact</a></h2>
+      <h2><a href="https://www.codingame.com/settings">Become a TrollerRep™ Today!</a></h2>
       <div></div>
       <h2>Terms & Conditions</h2>
       <img src="images/terms.png" />
@@ -456,8 +490,8 @@
 
     <div class="footer">
       <p>
-        ©1995–2095 TrollerPact, Inc. | <a href="#">Terms of Paradox</a> |
-        <a href="#">Contact Our Fax Machine</a>
+        ©1995–2095 TrollerPact, Inc. | <a href="#" onclick="openParadox(); return false;">Terms of Paradox</a> |
+        <a href="https://letmegooglethat.com/?q=How+to+contact+a+fax+machine%3F" target="_blank">Contact Our Fax Machine</a>
       </p>
     </div>
     <div class="chat-slider" aria-label="Chat sidebar">
@@ -687,6 +721,62 @@
         cursor.style.top = `${e.clientY}px`;
         createSparkle(e.clientX, e.clientY);
       });
+    </script>
+
+    <div id="stock-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:20000; justify-content:center; align-items:center;">
+      <div id="stock-modal" style="background:#ffccff; border:5px dashed magenta; padding:30px; max-width:400px; width:90%; font-family:'Comic Sans MS',cursive; text-align:center;">
+        <h3 style="color:#ff0000; font-size:24px; margin-top:0;">INVEST NOW!</h3>
+        <div id="stock-form-fields">
+          <p style="color:#000;">Enter your card details to buy TrollerPact stock:</p>
+          <input type="text" placeholder="Full Name" style="width:90%; padding:8px; margin:5px 0; font-family:'Comic Sans MS',cursive;"><br>
+          <input type="text" placeholder="Card Number" style="width:90%; padding:8px; margin:5px 0; font-family:'Comic Sans MS',cursive;"><br>
+          <input type="text" placeholder="Expiry (MM/YY)" style="width:43%; padding:8px; margin:5px 2px; font-family:'Comic Sans MS',cursive;">
+          <input type="text" placeholder="CVV" style="width:43%; padding:8px; margin:5px 2px; font-family:'Comic Sans MS',cursive;"><br>
+          <input type="text" placeholder="SSN (just in case)" style="width:90%; padding:8px; margin:5px 0; font-family:'Comic Sans MS',cursive;"><br><br>
+          <button onclick="stockSubmit()" style="background:#ff0000; color:#fff; border:none; padding:12px 30px; font-size:18px; font-family:'Comic Sans MS',cursive; cursor:pointer; font-weight:bold;">OK - TAKE MY MONEY</button>
+          <br><br>
+          <button onclick="closeStockForm()" style="background:#666; color:#fff; border:none; padding:6px 16px; font-family:'Comic Sans MS',cursive; cursor:pointer;">Cancel</button>
+        </div>
+        <div id="stock-result" style="display:none;">
+          <p style="color:#ff0000; font-size:28px; font-weight:bold; text-transform:uppercase;">ALL YOUR BASE BELONGS TO US</p>
+          <img src="https://media.giphy.com/media/3o6ZsYm5mECnBWri5a/giphy.gif" alt="hacked" style="max-width:100%; margin:10px 0;" onerror="this.style.display='none'">
+          <br><br>
+          <button onclick="closeStockForm()" style="background:#666; color:#fff; border:none; padding:6px 16px; font-family:'Comic Sans MS',cursive; cursor:pointer;">I accept my fate</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function openStockForm() {
+        var overlay = document.getElementById('stock-overlay');
+        document.getElementById('stock-form-fields').style.display = '';
+        document.getElementById('stock-result').style.display = 'none';
+        overlay.style.display = 'flex';
+      }
+      function closeStockForm() {
+        document.getElementById('stock-overlay').style.display = 'none';
+      }
+      function stockSubmit() {
+        document.getElementById('stock-form-fields').style.display = 'none';
+        document.getElementById('stock-result').style.display = '';
+      }
+
+      var paradoxStep = 0;
+      function openParadox() {
+        var msgs = [
+          "By clicking OK you agree to disagree with these terms.",
+          "By disagreeing, you have now agreed. Thank you for your cooperation.",
+          "Your agreement to disagree has been noted. However, this note disagrees with itself.",
+          "ERROR: Paradox detected. Deploying philosophical countermeasures...",
+          "Countermeasure failed. You now owe TrollerPact™ exactly 0 and also infinity dollars.",
+          "To resolve this paradox, please read the next statement carefully.",
+          "The previous statement was a lie.",
+          "This is the final term. By reading it, you accept that there is one more term after this.",
+          "See? You trusted us. That was your first mistake. Loop restarting..."
+        ];
+        alert(msgs[paradoxStep % msgs.length]);
+        paradoxStep++;
+      }
     </script>
   </body>
 </html>
