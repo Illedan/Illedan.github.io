@@ -85,12 +85,14 @@
       background: #44ffaa;
       transition: width 0.3s;
     }
-    canvas { display: block; border-radius: 0 6px 6px 0; }
+    canvas { display: block; border-radius: 0 6px 6px 0; max-width: 100vw; height: auto; }
+    #game-row { max-width: 100vw; }
     #ui { color: #aaa; font-size: 0.75rem; margin-top: 8px; text-align: center; }
     #touch-controls {
-      display: none; margin-top: 10px; width: 100%; max-width: 900px;
+      display: none; margin-top: 10px; width: 100%; max-width: 100vw; padding: 0 8px;
       justify-content: space-between; align-items: center;
       user-select: none; -webkit-user-select: none; touch-action: none;
+      box-sizing: border-box;
     }
     .touch-group { display: flex; gap: 8px; align-items: center; }
     .tbtn {
@@ -102,8 +104,34 @@
     .tbtn:active, .tbtn.pressed { background: rgba(255,255,255,0.25); }
     .tbtn.jump-btn { width: 90px; height: 90px; border-radius: 50%; font-size: 16px; font-weight: bold; }
     .tbtn.sm { width: 50px; height: 50px; font-size: 14px; }
+    #mobile-levels {
+      display: none;
+      width: 100%; max-width: 100vw; padding: 0 8px; box-sizing: border-box;
+      margin-top: 10px;
+    }
+    #mobile-levels-header {
+      padding: 8px 10px; font-size: 11px; font-weight: bold; color: #888;
+      text-transform: uppercase; letter-spacing: 1px;
+      border-bottom: 1px solid #1a1a3a; background: #0a0a18;
+      border-radius: 6px 6px 0 0;
+    }
+    #mobile-level-list {
+      max-height: 250px; overflow-y: auto;
+      background: #0d0d20; border: 1px solid #1a1a3a; border-top: none;
+      border-radius: 0 0 6px 6px;
+      scrollbar-width: thin; scrollbar-color: #333 #0d0d20;
+    }
+    #mobile-level-list::-webkit-scrollbar { width: 5px; }
+    #mobile-level-list::-webkit-scrollbar-track { background: #0d0d20; }
+    #mobile-level-list::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
     @media (pointer: coarse) { #touch-controls { display: flex; } #ui { display: none; } }
-    @media (max-width: 700px) { #sidebar { display: none; } }
+    @media (max-width: 700px) { #sidebar { display: none; } #mobile-levels { display: block; } body { overflow: auto; } }
+    @media (max-width: 500px) {
+      .tbtn { width: 52px; height: 52px; font-size: 20px; border-radius: 12px; }
+      .tbtn.jump-btn { width: 72px; height: 72px; font-size: 14px; }
+      .tbtn.sm { width: 42px; height: 42px; font-size: 12px; }
+      .touch-group { gap: 6px; }
+    }
   </style>
 </head>
 <body>
@@ -120,11 +148,18 @@
       <div class="tbtn" id="btn-left">&#9664;</div>
       <div class="tbtn" id="btn-right">&#9654;</div>
     </div>
-    <div class="tbtn sm" id="btn-r">R</div>
+    <div class="touch-group">
+      <div class="tbtn sm" id="btn-r">R</div>
+      <div class="tbtn sm" id="btn-mute-touch">&#x1F50A;</div>
+    </div>
     <div class="touch-group">
       <div class="tbtn jump-btn" id="btn-jump">JUMP</div>
       <div class="tbtn sm" id="btn-shoot">&#x1F3F9;</div>
     </div>
+  </div>
+  <div id="mobile-levels">
+    <div id="mobile-levels-header">Levels</div>
+    <div id="mobile-level-list"></div>
   </div>
   <script>
   const canvas = document.getElementById('c');
@@ -252,11 +287,20 @@
   document.addEventListener('keydown', initMusic);
   document.addEventListener('touchstart', initMusic);
 
-  document.getElementById('btn-mute').addEventListener('click', function(e) {
-    e.stopPropagation();
+  function toggleMute() {
     muted = !muted;
     if (masterGain) masterGain.gain.value = muted ? 0 : 0.18;
-    this.textContent = muted ? 'Unmute' : 'Mute';
+    document.getElementById('btn-mute').textContent = muted ? 'Unmute' : 'Mute';
+    const mt = document.getElementById('btn-mute-touch');
+    if (mt) mt.innerHTML = muted ? '&#x1F507;' : '&#x1F50A;';
+  }
+  document.getElementById('btn-mute').addEventListener('click', function(e) {
+    e.stopPropagation();
+    toggleMute();
+  });
+  document.getElementById('btn-mute-touch').addEventListener('click', function(e) {
+    e.stopPropagation();
+    toggleMute();
   });
 
   // ── Load spritesheets ──────────────────────────────────────────
@@ -478,7 +522,9 @@
 
   // ── Build sidebar level list ───────────────────────────────────
   const levelListEl = document.getElementById('level-list');
+  const mobileLevelListEl = document.getElementById('mobile-level-list');
   const levelItems = [];
+  const mobileLevelItems = [];
   // Pre-generate level names and max scores for sidebar
   const levelMeta = [];
   for (let i = 0; i < TOTAL_LEVELS; i++) {
@@ -486,48 +532,58 @@
     levelMeta.push({ name: l.name, maxScore: l.maxScore });
   }
 
+  function createLevelItem(i, prog, highest) {
+    const meta = levelMeta[i];
+    const p = prog[String(i)];
+    const unlocked = i <= highest;
+    const completed = p && p.completed;
+
+    const el = document.createElement('div');
+    el.className = 'lv-item' + (unlocked ? ' unlocked' : '') + (completed ? ' completed' : '');
+
+    const pct = completed ? Math.round((p.score / meta.maxScore) * 100) : 0;
+    el.innerHTML = `
+      <span class="lv-num">Lv ${i+1}</span>
+      <span class="lv-name">${meta.name}</span>
+      ${completed
+        ? `<span class="lv-score">${p.score} / ${meta.maxScore} pts (${pct}%)</span>
+           <div class="lv-bar"><div class="lv-bar-fill" style="width:${pct}%"></div></div>`
+        : unlocked
+          ? `<span class="lv-score">Not completed</span>`
+          : `<span class="lv-score">Locked</span>`
+      }
+    `;
+
+    if (unlocked) {
+      el.addEventListener('click', () => jumpToLevel(i));
+    }
+    return el;
+  }
+
   function buildSidebar() {
     levelListEl.innerHTML = '';
+    mobileLevelListEl.innerHTML = '';
     levelItems.length = 0;
+    mobileLevelItems.length = 0;
     const prog = loadProgress();
     const highest = getHighestUnlocked();
 
     for (let i = 0; i < TOTAL_LEVELS; i++) {
-      const meta = levelMeta[i];
-      const p = prog[String(i)];
-      const unlocked = i <= highest;
-      const completed = p && p.completed;
-
-      const el = document.createElement('div');
-      el.className = 'lv-item' + (unlocked ? ' unlocked' : '') + (completed ? ' completed' : '');
-
-      const pct = completed ? Math.round((p.score / meta.maxScore) * 100) : 0;
-      el.innerHTML = `
-        <span class="lv-num">Lv ${i+1}</span>
-        <span class="lv-name">${meta.name}</span>
-        ${completed
-          ? `<span class="lv-score">${p.score} / ${meta.maxScore} pts (${pct}%)</span>
-             <div class="lv-bar"><div class="lv-bar-fill" style="width:${pct}%"></div></div>`
-          : unlocked
-            ? `<span class="lv-score">Not completed</span>`
-            : `<span class="lv-score">Locked</span>`
-        }
-      `;
-
-      if (unlocked) {
-        el.addEventListener('click', () => jumpToLevel(i));
-      }
-
+      const el = createLevelItem(i, prog, highest);
       levelListEl.appendChild(el);
       levelItems.push(el);
+
+      const mel = createLevelItem(i, prog, highest);
+      mobileLevelListEl.appendChild(mel);
+      mobileLevelItems.push(mel);
     }
   }
 
-  function updateSidebarActive() {
+  function updateLevelItemsList(items) {
     const prog = loadProgress();
     const highest = getHighestUnlocked();
-    for (let i = 0; i < levelItems.length; i++) {
-      const el = levelItems[i];
+    for (let i = 0; i < items.length; i++) {
+      const el = items[i];
       const p = prog[String(i)];
       const meta = levelMeta[i];
       const unlocked = i <= highest;
@@ -538,7 +594,6 @@
         + (completed ? ' completed' : '')
         + (i === currentLevel ? ' active' : '');
 
-      // Update score text if newly completed
       if (completed) {
         const pct = Math.round((p.score / meta.maxScore) * 100);
         const scoreEl = el.querySelector('.lv-score');
@@ -547,16 +602,23 @@
         if (barEl) barEl.style.width = pct + '%';
       }
 
-      // Add click if newly unlocked
       if (unlocked && !el._hasClick) {
         el.addEventListener('click', ((idx) => () => jumpToLevel(idx))(i));
         el._hasClick = true;
       }
     }
+  }
+
+  function updateSidebarActive() {
+    updateLevelItemsList(levelItems);
+    updateLevelItemsList(mobileLevelItems);
 
     // Scroll active into view
     if (levelItems[currentLevel]) {
       levelItems[currentLevel].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+    if (mobileLevelItems[currentLevel]) {
+      mobileLevelItems[currentLevel].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
   }
 
