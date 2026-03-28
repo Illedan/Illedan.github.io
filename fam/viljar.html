@@ -86,14 +86,29 @@
       transition: width 0.3s;
     }
     canvas { display: block; border-radius: 0 6px 6px 0; max-width: 100vw; height: auto; }
-    #game-row { max-width: 100vw; }
+    #game-row { max-width: 100vw; position: relative; }
     #ui { color: #aaa; font-size: 0.75rem; margin-top: 8px; text-align: center; }
+    /* ── External touch controls (portrait) ── */
     #touch-controls {
       display: none; margin-top: 10px; width: 100%; max-width: 100vw; padding: 0 8px;
       justify-content: space-between; align-items: center;
       user-select: none; -webkit-user-select: none; touch-action: none;
       box-sizing: border-box;
     }
+    /* ── Overlay touch controls (on canvas) ── */
+    #touch-overlay {
+      display: none; position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+      pointer-events: none; z-index: 10;
+      justify-content: space-between; align-items: flex-end;
+      padding: 10px 12px; box-sizing: border-box;
+      user-select: none; -webkit-user-select: none; touch-action: none;
+    }
+    #touch-overlay .touch-group, #touch-overlay .tbtn { pointer-events: auto; }
+    #touch-overlay .tbtn {
+      opacity: 0.45;
+    }
+    #touch-overlay .tbtn:active, #touch-overlay .tbtn.pressed { opacity: 0.7; }
+    #overlay-mid { display: flex; flex-direction: column; gap: 6px; align-items: center; align-self: flex-start; padding-top: 4px; }
     .touch-group { display: flex; gap: 8px; align-items: center; }
     .tbtn {
       width: 64px; height: 64px; border-radius: 14px;
@@ -124,7 +139,19 @@
     #mobile-level-list::-webkit-scrollbar { width: 5px; }
     #mobile-level-list::-webkit-scrollbar-track { background: #0d0d20; }
     #mobile-level-list::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
-    @media (pointer: coarse) { #touch-controls { display: flex; } #ui { display: none; } }
+    @media (pointer: coarse) {
+      #touch-controls { display: flex; }
+      #touch-overlay { display: flex; }
+      #ui { display: none; }
+    }
+    /* Landscape on touch: hide external controls, rely on overlay */
+    @media (pointer: coarse) and (orientation: landscape) {
+      #touch-controls { display: none; }
+    }
+    /* Portrait on touch: hide overlay, use external controls below */
+    @media (pointer: coarse) and (orientation: portrait) {
+      #touch-overlay { display: none; }
+    }
     @media (max-width: 700px) { #sidebar { display: none; } #mobile-levels { display: block; } body { overflow: auto; } }
     @media (max-width: 500px) {
       .tbtn { width: 52px; height: 52px; font-size: 20px; border-radius: 12px; }
@@ -141,6 +168,20 @@
       <div id="level-list"></div>
     </div>
     <canvas id="c"></canvas>
+    <div id="touch-overlay">
+      <div class="touch-group" style="align-items:flex-end;">
+        <div class="tbtn" id="ol-left">&#9664;</div>
+        <div class="tbtn" id="ol-right">&#9654;</div>
+      </div>
+      <div id="overlay-mid">
+        <div class="tbtn sm" id="ol-r">R</div>
+        <div class="tbtn sm" id="ol-mute">&#x1F50A;</div>
+      </div>
+      <div class="touch-group" style="align-items:flex-end;">
+        <div class="tbtn sm" id="ol-shoot">&#x1F3F9;</div>
+        <div class="tbtn jump-btn" id="ol-jump">JUMP</div>
+      </div>
+    </div>
   </div>
   <div id="ui">Arrow keys / WASD &middot; Space jump &middot; X/E shoot arrow &middot; R restart <button id="btn-mute" style="margin-left:8px;padding:2px 8px;cursor:pointer;font-size:13px;background:#333;color:#eee;border:1px solid #555;border-radius:4px;">Mute</button></div>
   <div id="touch-controls">
@@ -291,16 +332,15 @@
     muted = !muted;
     if (masterGain) masterGain.gain.value = muted ? 0 : 0.18;
     document.getElementById('btn-mute').textContent = muted ? 'Unmute' : 'Mute';
+    const icon = muted ? '&#x1F507;' : '&#x1F50A;';
     const mt = document.getElementById('btn-mute-touch');
-    if (mt) mt.innerHTML = muted ? '&#x1F507;' : '&#x1F50A;';
+    if (mt) mt.innerHTML = icon;
+    const om = document.getElementById('ol-mute');
+    if (om) om.innerHTML = icon;
   }
-  document.getElementById('btn-mute').addEventListener('click', function(e) {
-    e.stopPropagation();
-    toggleMute();
-  });
-  document.getElementById('btn-mute-touch').addEventListener('click', function(e) {
-    e.stopPropagation();
-    toggleMute();
+  ['btn-mute', 'btn-mute-touch', 'ol-mute'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('click', function(e) { e.stopPropagation(); toggleMute(); });
   });
 
   // ── Load spritesheets ──────────────────────────────────────────
@@ -353,6 +393,8 @@
     el.addEventListener('mousedown', on); el.addEventListener('mouseup', off); el.addEventListener('mouseleave', off);
   }
   bindTouch('btn-left','left'); bindTouch('btn-right','right'); bindTouch('btn-jump','jump'); bindTouch('btn-shoot','shoot');
+  // Overlay buttons (landscape)
+  bindTouch('ol-left','left'); bindTouch('ol-right','right'); bindTouch('ol-jump','jump'); bindTouch('ol-shoot','shoot');
 
   // ── Local storage — per-level progress ─────────────────────────
   const PROGRESS_KEY = 'viljar_progress';
@@ -690,11 +732,13 @@
     else { score = 0; loadLevel(currentLevel); }
     updateSidebarActive();
   }
-  const btnR = document.getElementById('btn-r');
-  if (btnR) {
-    btnR.addEventListener('touchstart', e => { e.preventDefault(); doRestart(); });
-    btnR.addEventListener('click', doRestart);
-  }
+  ['btn-r', 'ol-r'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('touchstart', e => { e.preventDefault(); doRestart(); });
+      el.addEventListener('click', doRestart);
+    }
+  });
 
   init();
 
