@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Viljar</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a1a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: system-ui, sans-serif;
+      overflow: hidden;
+    }
+    #game-row {
+      display: flex;
+      gap: 0;
+      align-items: flex-start;
+    }
+    /* ── Level sidebar ──────────────────────────────────────── */
+    #sidebar {
+      width: 160px;
+      height: 500px;
+      background: #0d0d20;
+      border: 1px solid #1a1a3a;
+      border-right: none;
+      border-radius: 6px 0 0 6px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    #sidebar-header {
+      padding: 8px 10px;
+      font-size: 11px;
+      font-weight: bold;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      border-bottom: 1px solid #1a1a3a;
+      background: #0a0a18;
+    }
+    #level-list {
+      flex: 1;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: #333 #0d0d20;
+    }
+    #level-list::-webkit-scrollbar { width: 5px; }
+    #level-list::-webkit-scrollbar-track { background: #0d0d20; }
+    #level-list::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    .lv-item {
+      padding: 5px 10px;
+      border-bottom: 1px solid #111128;
+      cursor: default;
+      font-size: 11px;
+      color: #444;
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      transition: background 0.15s;
+    }
+    .lv-item.unlocked { cursor: pointer; color: #aaa; }
+    .lv-item.unlocked:hover { background: #1a1a35; }
+    .lv-item.active { background: #1a1a40; border-left: 3px solid #44ffaa; }
+    .lv-item.completed .lv-name { color: #44ffaa; }
+    .lv-num { font-weight: bold; color: #666; font-size: 10px; }
+    .lv-item.active .lv-num { color: #44ffaa; }
+    .lv-name { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .lv-score { font-size: 9px; color: #555; }
+    .lv-item.completed .lv-score { color: #777; }
+    .lv-bar {
+      height: 3px;
+      background: #1a1a30;
+      border-radius: 2px;
+      margin-top: 2px;
+      overflow: hidden;
+    }
+    .lv-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      background: #44ffaa;
+      transition: width 0.3s;
+    }
+    canvas { display: block; border-radius: 0 6px 6px 0; }
+    #ui { color: #aaa; font-size: 0.75rem; margin-top: 8px; text-align: center; }
+    #touch-controls {
+      display: none; margin-top: 10px; width: 100%; max-width: 900px;
+      justify-content: space-between; align-items: center;
+      user-select: none; -webkit-user-select: none; touch-action: none;
+    }
+    .touch-group { display: flex; gap: 8px; align-items: center; }
+    .tbtn {
+      width: 64px; height: 64px; border-radius: 14px;
+      border: 2px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.08);
+      color: #ccc; font-size: 24px; display: flex; align-items: center;
+      justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    .tbtn:active, .tbtn.pressed { background: rgba(255,255,255,0.25); }
+    .tbtn.jump-btn { width: 90px; height: 90px; border-radius: 50%; font-size: 16px; font-weight: bold; }
+    .tbtn.sm { width: 50px; height: 50px; font-size: 14px; }
+    @media (pointer: coarse) { #touch-controls { display: flex; } #ui { display: none; } }
+    @media (max-width: 700px) { #sidebar { display: none; } }
+  </style>
+</head>
+<body>
+  <div id="game-row">
+    <div id="sidebar">
+      <div id="sidebar-header">Levels</div>
+      <div id="level-list"></div>
+    </div>
+    <canvas id="c"></canvas>
+  </div>
+  <div id="ui">Arrow keys / WASD &middot; Space jump &middot; X/E shoot arrow &middot; R restart <button id="btn-mute" style="margin-left:8px;padding:2px 8px;cursor:pointer;font-size:13px;background:#333;color:#eee;border:1px solid #555;border-radius:4px;">Mute</button></div>
+  <div id="touch-controls">
+    <div class="touch-group">
+      <div class="tbtn" id="btn-left">&#9664;</div>
+      <div class="tbtn" id="btn-right">&#9654;</div>
+    </div>
+    <div class="tbtn sm" id="btn-r">R</div>
+    <div class="touch-group">
+      <div class="tbtn jump-btn" id="btn-jump">JUMP</div>
+      <div class="tbtn sm" id="btn-shoot">&#x1F3F9;</div>
+    </div>
+  </div>
+  <script>
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width = 900;
+  const H = canvas.height = 500;
+
+  // ── Seeded RNG ─────────────────────────────────────────────────
+  function mulberry32(seed) {
+    return function() {
+      seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+      let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  // ── 8-bit music (Web Audio API) ────────────────────────────────
+  let audioCtx = null, musicPlaying = false, masterGain = null, muted = false;
+  function startMusic() {
+    if (musicPlaying) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    musicPlaying = true;
+
+    const BPM = 180;
+    const beatLen = 60 / BPM;
+    const master = audioCtx.createGain();
+    master.gain.value = 0.18;
+    masterGain = master;
+    master.connect(audioCtx.destination);
+
+    // Notes in Hz
+    const N = {
+      C4:261.6, D4:293.7, E4:329.6, F4:349.2, G4:392.0, A4:440.0, B4:493.9,
+      C5:523.3, D5:587.3, E5:659.3, F5:698.5, G5:784.0, A5:880.0,
+      C3:130.8, D3:146.8, E3:164.8, F3:174.6, G3:196.0, A3:220.0, B3:246.9,
+      C4b:261.6, G2:98.0, A2:110.0, B2:123.5, C2:65.4, D2:73.4, E2:82.4, F2:87.3,
+    };
+
+    // Melody — fast upbeat 8-bit adventure loop
+    const melody = [
+      'E4','E4','0','E4','0','C4','E4','0',
+      'G4','0','0','0','G3','0','0','0',
+      'C4','0','0','G3','0','0','E3','0',
+      '0','A3','0','B3','0','A3#','A3','0',
+      'G3','E4','G4','A4','0','F4','G4','0',
+      'E4','0','C4','D4','B3','0','0','0',
+      'C4','0','0','G3','0','0','E3','0',
+      '0','A3','0','B3','0','A3#','A3','0',
+    ];
+    // Bass line
+    const bass = [
+      'C2','0','C2','0','C2','0','G2','0',
+      'G2','0','0','0','G2','0','0','0',
+      'C2','0','0','G2','0','0','E2','0',
+      '0','A2','0','B2','0','A2','A2','0',
+      'G2','0','E2','0','G2','0','A2','0',
+      'E2','0','C2','0','B2','0','0','0',
+      'C2','0','0','G2','0','0','E2','0',
+      '0','A2','0','B2','0','A2','A2','0',
+    ];
+
+    function freqOf(note) {
+      if (note === '0') return 0;
+      // Handle sharp notes
+      if (note.endsWith('#')) {
+        const base = note.slice(0, -1);
+        return (N[base] || 0) * Math.pow(2, 1/12);
+      }
+      return N[note] || 0;
+    }
+
+    function playNote(freq, start, dur, type, gain) {
+      if (freq === 0) return;
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.value = freq;
+      g.gain.setValueAtTime(gain, start);
+      g.gain.exponentialRampToValueAtTime(0.001, start + dur * 0.9);
+      osc.connect(g); g.connect(master);
+      osc.start(start); osc.stop(start + dur);
+    }
+
+    function scheduleLoop() {
+      const now = audioCtx.currentTime + 0.05;
+      const loopLen = melody.length * beatLen;
+
+      for (let i = 0; i < melody.length; i++) {
+        const t = now + i * beatLen;
+        playNote(freqOf(melody[i]), t, beatLen * 0.8, 'square', 0.35);
+        playNote(freqOf(bass[i]), t, beatLen * 0.9, 'triangle', 0.5);
+      }
+
+      // Hi-hat rhythm
+      for (let i = 0; i < melody.length; i++) {
+        if (i % 2 === 0) {
+          const t = now + i * beatLen;
+          const noise = audioCtx.createBufferSource();
+          const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.03, audioCtx.sampleRate);
+          const d = buf.getChannelData(0);
+          for (let j = 0; j < d.length; j++) d[j] = (Math.random() * 2 - 1) * 0.3;
+          noise.buffer = buf;
+          const ng = audioCtx.createGain();
+          ng.gain.setValueAtTime(0.15, t);
+          ng.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
+          noise.connect(ng); ng.connect(master);
+          noise.start(t); noise.stop(t + 0.04);
+        }
+      }
+
+      setTimeout(scheduleLoop, (loopLen - 0.2) * 1000);
+    }
+    scheduleLoop();
+  }
+
+  // Start music on first user interaction
+  function initMusic() {
+    startMusic();
+    document.removeEventListener('click', initMusic);
+    document.removeEventListener('keydown', initMusic);
+    document.removeEventListener('touchstart', initMusic);
+  }
+  document.addEventListener('click', initMusic);
+  document.addEventListener('keydown', initMusic);
+  document.addEventListener('touchstart', initMusic);
+
+  document.getElementById('btn-mute').addEventListener('click', function(e) {
+    e.stopPropagation();
+    muted = !muted;
+    if (masterGain) masterGain.gain.value = muted ? 0 : 0.18;
+    this.textContent = muted ? 'Unmute' : 'Mute';
+  });
+
+  // ── Load spritesheets ──────────────────────────────────────────
+  const playerSprite = new Image();
+  playerSprite.src = 'spritesheet.png';
+  let PFW = 1, PFH = 1;
+  playerSprite.onload = function() {
+    PFW = this.naturalWidth / 10;
+    PFH = this.naturalHeight / 8;
+  };
+  const PLAYER_ANIMS = {
+    idle:  { row: 0, count: 3,  speed: 0.25 },
+    walkR: { row: 7, count: 10, speed: 0.07 },
+    walkL: { row: 5, count: 10, speed: 0.07 },
+  };
+
+  const MONSTER_FRAME_COUNT = 6;
+  const MONSTER_WALK_SPEED = 0.12;
+  const monsterFrames = [];
+  let monsterFramesLoaded = 0;
+  (function loadMonsterFrames() {
+    for (let i = 0; i < MONSTER_FRAME_COUNT; i++) {
+      const img = new Image();
+      img.src = `monsters/monster_walk_${i}.png`;
+      img.onload = () => { monsterFramesLoaded++; };
+      monsterFrames.push(img);
+    }
+  })();
+
+  // ── Input ──────────────────────────────────────────────────────
+  const keys = {};
+  const touch = { left: false, right: false, jump: false, shoot: false };
+  window.addEventListener('keydown', e => {
+    keys[e.code] = true;
+    if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
+  });
+  window.addEventListener('keyup', e => { keys[e.code] = false; });
+  const kLeft  = () => keys['ArrowLeft']  || keys['KeyA'] || touch.left;
+  const kRight = () => keys['ArrowRight'] || keys['KeyD'] || touch.right;
+  const kJump  = () => keys['Space']      || keys['ArrowUp'] || keys['KeyW'] || touch.jump;
+  const kShoot = () => keys['KeyX'] || keys['KeyE'] || touch.shoot;
+
+  function bindTouch(id, prop) {
+    const el = document.getElementById(id); if (!el) return;
+    const on = () => { touch[prop] = true; el.classList.add('pressed'); };
+    const off = () => { touch[prop] = false; el.classList.remove('pressed'); };
+    el.addEventListener('touchstart', e => { e.preventDefault(); on(); });
+    el.addEventListener('touchend', e => { e.preventDefault(); off(); });
+    el.addEventListener('touchcancel', off);
+    el.addEventListener('mousedown', on); el.addEventListener('mouseup', off); el.addEventListener('mouseleave', off);
+  }
+  bindTouch('btn-left','left'); bindTouch('btn-right','right'); bindTouch('btn-jump','jump'); bindTouch('btn-shoot','shoot');
+
+  // ── Local storage — per-level progress ─────────────────────────
+  const PROGRESS_KEY = 'viljar_progress';
+  function loadProgress() {
+    try { return JSON.parse(localStorage.getItem(PROGRESS_KEY)) || {}; } catch(e) { return {}; }
+  }
+  function saveProgress(levelNum, sc, maxSc) {
+    const prog = loadProgress();
+    const key = String(levelNum);
+    const prev = prog[key];
+    if (!prev || sc > prev.score) {
+      prog[key] = { score: sc, maxScore: maxSc, completed: true };
+    }
+    try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(prog)); } catch(e) {}
+  }
+  function getHighestUnlocked() {
+    const prog = loadProgress();
+    let max = 0;
+    for (const k in prog) {
+      if (prog[k].completed) max = Math.max(max, parseInt(k));
+    }
+    return max + 1; // can play up to one past highest completed
+  }
+
+  // ── Level themes ───────────────────────────────────────────────
+  const THEMES = [
+    { name:'Green Hills',   sky:'#4a8ab0', bg2:'#1a2e1a', pc:['#4a7a5a','#2a3a30','#5a9a6a'], mt:['#1a3a22','#254a30','#2e5a3a'], cloud:'rgba(255,255,255,0.25)' },
+    { name:'Blue Caverns',  sky:'#2a3a6e', bg2:'#1a1a3e', pc:['#5a5a8a','#2a2a50','#7a7aaa'], mt:['#1a1a40','#252558','#303068'], cloud:'rgba(180,200,255,0.15)' },
+    { name:'Red Inferno',   sky:'#4a2020', bg2:'#2e0a0a', pc:['#8a4a3a','#502a20','#aa5a4a'], mt:['#2a0e0e','#3a1818','#4a2222'], cloud:'rgba(255,150,100,0.18)' },
+    { name:'Purple Dusk',   sky:'#3a2050', bg2:'#2a0a3e', pc:['#7a4a8a','#402a50','#9a5aaa'], mt:['#1a0a28','#2a1440','#381e52'], cloud:'rgba(220,180,255,0.2)' },
+    { name:'Golden Sands',  sky:'#7a6a40', bg2:'#2e250a', pc:['#8a7a3a','#504a20','#aa9a4a'], mt:['#2a2510','#3a3518','#4a4522'], cloud:'rgba(255,240,200,0.22)' },
+    { name:'Frozen Peaks',  sky:'#5a8aa0', bg2:'#0a2a3e', pc:['#4a7a8a','#2a4a50','#5a9aaa'], mt:['#1a3040','#254050','#305060'], cloud:'rgba(220,240,255,0.3)' },
+    { name:'Dark Forest',   sky:'#2a4a3a', bg2:'#0a1e0a', pc:['#3a5a3a','#1a2a1a','#4a6a4a'], mt:['#0a1a0a','#142414','#1e2e1e'], cloud:'rgba(200,220,200,0.12)' },
+    { name:'Volcanic Ash',  sky:'#3a3030', bg2:'#2a1a1a', pc:['#6a5a5a','#3a2a2a','#7a6a6a'], mt:['#1a1414','#241e1e','#2e2828'], cloud:'rgba(200,180,170,0.15)' },
+    { name:'Ocean Depths',  sky:'#2a4a6a', bg2:'#0a152e', pc:['#3a4a7a','#1a2a4a','#4a5a9a'], mt:['#0a1530','#142540','#1e3550'], cloud:'rgba(180,210,255,0.2)' },
+    { name:'Neon City',     sky:'#2a1540', bg2:'#150a30', pc:['#8a3a8a','#4a1a4a','#aa4aaa'], mt:['#14082a','#1e1040','#281850'], cloud:'rgba(230,180,255,0.18)' },
+  ];
+
+  const PLAT_H = 16;
+  const TOTAL_LEVELS = 100;
+
+  // ── Procedural level generation ────────────────────────────────
+  function generateLevel(levelNum) {
+    const rng = mulberry32(levelNum * 7919 + 1337);
+    const r = () => rng();
+    const ri = (min, max) => Math.floor(r() * (max - min + 1)) + min;
+
+    const theme = THEMES[levelNum % THEMES.length];
+    const difficulty = Math.min(1, 1 - Math.exp(-levelNum / 15));
+
+    const numPlatforms = ri(8, 12) + Math.floor(difficulty * 12);
+    const numDoors = Math.min(1 + Math.floor(levelNum / 5), 5);
+    const numMonsters = Math.min(3 + Math.floor(difficulty * 14), 16);
+    const platformMinW = Math.max(55, 180 - difficulty * 110);
+    const platformMaxW = Math.max(90, 240 - difficulty * 100);
+    const gapMin = Math.max(50, 90 + difficulty * 80);
+    const gapMax = Math.max(90, 150 + difficulty * 80);
+    const monsterSpeed = 50 + difficulty * 80;
+
+    const platforms = [], coins = [], gems = [], keysDef = [], doorsDef = [], monstersDef = [];
+    let cx = 0, cy = 400;
+    const movingPlatIndices = [];
+
+    for (let i = 0; i < numPlatforms; i++) {
+      const pw = ri(Math.floor(platformMinW), Math.floor(platformMaxW));
+      const dy = ri(-60, 40);
+      cy = Math.max(180, Math.min(430, cy + dy));
+      platforms.push([cx, cy, pw]);
+      // Add stacked platforms above
+      if (i > 2 && r() < 0.35 + difficulty * 0.25) {
+        const highY = cy - ri(70, 140);
+        if (highY > 80) platforms.push([cx + ri(-20, 20), highY, ri(50, 100)]);
+      }
+      // Add stacked platforms below
+      if (i > 1 && r() < 0.25 + difficulty * 0.2) {
+        const lowY = cy + ri(40, 80);
+        if (lowY < 460) platforms.push([cx + ri(-30, 30), lowY, ri(50, 110)]);
+      }
+      // Add floating platforms between gaps (chaos!)
+      if (i > 0 && r() < 0.3 + difficulty * 0.25) {
+        const floatX = cx - ri(30, 80);
+        const floatY = ri(150, 420);
+        platforms.push([floatX, floatY, ri(40, 80)]);
+      }
+      if (i > 0 && i < numPlatforms - 1 && pw >= 70 && r() < 0.4 + difficulty * 0.2) {
+        movingPlatIndices.push(platforms.length - 1);
+      }
+      cx += pw + ri(Math.floor(gapMin), Math.floor(gapMax));
+    }
+
+    for (let i = 0; i < platforms.length; i++) {
+      const p = platforms[i];
+      const nc = ri(1, 3);
+      for (let j = 0; j < nc; j++) coins.push([p[0]+ri(15,p[2]-15), p[1]-ri(20,40)]);
+    }
+
+    // (coins near doors will be filtered after doors are placed — see below)
+
+    const gemCount = ri(3, 5) + Math.floor(difficulty * 3);
+    for (let i = 0; i < gemCount; i++) {
+      const pi = ri(1, platforms.length-2);
+      const p = platforms[pi];
+      gems.push([p[0]+ri(15,p[2]-15), p[1]-ri(25,45)]);
+    }
+
+    const doorPlatforms = [];
+    const step = Math.floor((platforms.length-2)/numDoors);
+    for (let i = 0; i < numDoors; i++) {
+      doorPlatforms.push(Math.min(step*(i+1)+ri(0,2), platforms.length-1));
+    }
+    doorPlatforms[doorPlatforms.length-1] = platforms.length-1;
+
+    for (let i = 0; i < doorPlatforms.length; i++) {
+      const p = platforms[doorPlatforms[i]];
+      doorsDef.push({ x:p[0]+p[2]-45, y:p[1]-48, w:32, h:48, keyNeeded:true, exit:i===doorPlatforms.length-1 });
+    }
+
+    for (let i = 0; i < doorPlatforms.length; i++) {
+      const doorPi = doorPlatforms[i];
+      const prevDoorPi = i > 0 ? doorPlatforms[i-1] : 0;
+      const keyPi = ri(Math.max(1,prevDoorPi+1), Math.max(2,doorPi-1));
+      const kp = platforms[Math.min(keyPi, platforms.length-1)];
+      keysDef.push({ x:kp[0]+ri(15,kp[2]-15), y:kp[1]-ri(25,50), doorIndex:i });
+    }
+
+    let placed = 0;
+    for (let i = 1; i < platforms.length-1 && placed < numMonsters; i++) {
+      if (platforms[i][2] >= 100 && r() < 0.5+difficulty*0.3) {
+        if (!doorPlatforms.includes(i) || r() < 0.3) {
+          monstersDef.push({ platIdx:i, speed:monsterSpeed+r()*30 });
+          placed++;
+        }
+      }
+    }
+
+    // Filter coins that overlap with doors
+    for (let ci = coins.length - 1; ci >= 0; ci--) {
+      for (const d of doorsDef) {
+        if (Math.abs(coins[ci][0] - d.x) < 40 && Math.abs(coins[ci][1] - d.y) < 50) {
+          coins.splice(ci, 1);
+          break;
+        }
+      }
+    }
+    // Also filter gems near doors
+    for (let gi = gems.length - 1; gi >= 0; gi--) {
+      for (const d of doorsDef) {
+        if (Math.abs(gems[gi][0] - d.x) < 40 && Math.abs(gems[gi][1] - d.y) < 50) {
+          gems.splice(gi, 1);
+          break;
+        }
+      }
+    }
+
+    const prefix = ['The','Ancient','Lost','Hidden','Cursed','Forgotten','Mystic','Dark','Burning','Frozen'];
+    const levelName = prefix[ri(0,prefix.length-1)] + ' ' + theme.name;
+    const maxScore = coins.length * 10 + gems.length * 50 + keysDef.length * 100;
+
+    return {
+      name: levelName, sky:theme.sky, bg2:theme.bg2, platColor:theme.pc,
+      mt:theme.mt, cloud:theme.cloud,
+      platforms, coins, gems, keys:keysDef, doors:doorsDef, monsters:monstersDef,
+      movingPlatIndices, maxScore,
+      spawnX: platforms[0][0]+40, spawnY: platforms[0][1]-40,
+    };
+  }
+
+  // ── Build sidebar level list ───────────────────────────────────
+  const levelListEl = document.getElementById('level-list');
+  const levelItems = [];
+  // Pre-generate level names and max scores for sidebar
+  const levelMeta = [];
+  for (let i = 0; i < TOTAL_LEVELS; i++) {
+    const l = generateLevel(i);
+    levelMeta.push({ name: l.name, maxScore: l.maxScore });
+  }
+
+  function buildSidebar() {
+    levelListEl.innerHTML = '';
+    levelItems.length = 0;
+    const prog = loadProgress();
+    const highest = getHighestUnlocked();
+
+    for (let i = 0; i < TOTAL_LEVELS; i++) {
+      const meta = levelMeta[i];
+      const p = prog[String(i)];
+      const unlocked = i <= highest;
+      const completed = p && p.completed;
+
+      const el = document.createElement('div');
+      el.className = 'lv-item' + (unlocked ? ' unlocked' : '') + (completed ? ' completed' : '');
+
+      const pct = completed ? Math.round((p.score / meta.maxScore) * 100) : 0;
+      el.innerHTML = `
+        <span class="lv-num">Lv ${i+1}</span>
+        <span class="lv-name">${meta.name}</span>
+        ${completed
+          ? `<span class="lv-score">${p.score} / ${meta.maxScore} pts (${pct}%)</span>
+             <div class="lv-bar"><div class="lv-bar-fill" style="width:${pct}%"></div></div>`
+          : unlocked
+            ? `<span class="lv-score">Not completed</span>`
+            : `<span class="lv-score">Locked</span>`
+        }
+      `;
+
+      if (unlocked) {
+        el.addEventListener('click', () => jumpToLevel(i));
+      }
+
+      levelListEl.appendChild(el);
+      levelItems.push(el);
+    }
+  }
+
+  function updateSidebarActive() {
+    const prog = loadProgress();
+    const highest = getHighestUnlocked();
+    for (let i = 0; i < levelItems.length; i++) {
+      const el = levelItems[i];
+      const p = prog[String(i)];
+      const meta = levelMeta[i];
+      const unlocked = i <= highest;
+      const completed = p && p.completed;
+
+      el.className = 'lv-item'
+        + (unlocked ? ' unlocked' : '')
+        + (completed ? ' completed' : '')
+        + (i === currentLevel ? ' active' : '');
+
+      // Update score text if newly completed
+      if (completed) {
+        const pct = Math.round((p.score / meta.maxScore) * 100);
+        const scoreEl = el.querySelector('.lv-score');
+        if (scoreEl) scoreEl.textContent = `${p.score} / ${meta.maxScore} pts (${pct}%)`;
+        const barEl = el.querySelector('.lv-bar-fill');
+        if (barEl) barEl.style.width = pct + '%';
+      }
+
+      // Add click if newly unlocked
+      if (unlocked && !el._hasClick) {
+        el.addEventListener('click', ((idx) => () => jumpToLevel(idx))(i));
+        el._hasClick = true;
+      }
+    }
+
+    // Scroll active into view
+    if (levelItems[currentLevel]) {
+      levelItems[currentLevel].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }
+
+  function jumpToLevel(idx) {
+    if (idx > getHighestUnlocked()) return;
+    currentLevel = idx;
+    score = 0;
+    levelTransition = 0;
+    won = false;
+    gameOver = false;
+    loadLevel(currentLevel);
+    updateSidebarActive();
+  }
+
+  // ── Game state ─────────────────────────────────────────────────
+  const MAX_LIVES = 3;
+  let currentLevel = 0;
+  let lvl, player, cam, coins, gems, keyItems, doors, monsters, movingPlats;
+  let score, totalScore, won, particles;
+  let arrows, arrowsLeft, shootHeld;
+  let animFrame = 0, animTimer = 0, animState = 'idle';
+  let levelTransition = 0, showingLevelIntro = 0;
+  let lives = MAX_LIVES, gameOver = false, hurtTimer = 0;
+
+  // Cloud positions (seeded per level)
+  let clouds = [];
+  function genClouds(seed) {
+    const rng = mulberry32(seed * 3571 + 77);
+    clouds = [];
+    for (let i = 0; i < 18; i++) {
+      clouds.push({ x: rng() * 3000 - 200, y: 15 + rng() * 140, w: 50 + rng() * 100, h: 18 + rng() * 25 });
+    }
+  }
+
+  function loadLevel(idx) {
+    lvl = generateLevel(idx);
+    player = { x:lvl.spawnX, y:lvl.spawnY, vx:0, vy:0, w:24, h:32, onGround:false, facing:1, jumpsLeft:2, jumpHeld:false };
+    cam = { x: 0 };
+    coins = lvl.coins.map(c => ({ x:c[0], y:c[1], alive:true }));
+    gems = lvl.gems.map(g => ({ x:g[0], y:g[1], alive:true }));
+    keyItems = lvl.keys.map(k => ({ x:k.x, y:k.y, doorIndex:k.doorIndex, collected:false }));
+    doors = lvl.doors.map(d => ({ ...d, unlocked:false, opened:false }));
+    monsters = lvl.monsters.map(m => {
+      const plat = lvl.platforms[m.platIdx];
+      return { x:plat[0]+20, y:plat[1]-36, w:28, h:36,
+        platIdx:m.platIdx, platX:plat[0], platW:plat[2],
+        speed:m.speed, dir:1, animFrame:0, animTimer:0 };
+    });
+    movingPlats = lvl.movingPlatIndices.map(pi => ({
+      idx:pi, origY:lvl.platforms[pi][1], range:40+Math.random()*30, phase:Math.random()*Math.PI*2,
+    }));
+    won = false; gameOver = false; lives = MAX_LIVES;
+    particles = []; animFrame = 0; animTimer = 0; hurtTimer = 0;
+    arrows = []; arrowsLeft = 2; shootHeld = false;
+    showingLevelIntro = 2.0;
+    genClouds(idx);
+  }
+
+  function init() {
+    currentLevel = 0; score = 0; totalScore = 0;
+    won = false; gameOver = false; levelTransition = 0;
+    loadLevel(0);
+    buildSidebar();
+    updateSidebarActive();
+  }
+
+  function doRestart() {
+    if (gameOver || won) { score = 0; loadLevel(currentLevel); }
+    else { score = 0; loadLevel(currentLevel); }
+    updateSidebarActive();
+  }
+  const btnR = document.getElementById('btn-r');
+  if (btnR) {
+    btnR.addEventListener('touchstart', e => { e.preventDefault(); doRestart(); });
+    btnR.addEventListener('click', doRestart);
+  }
+
+  init();
+
+  // ── Particles ──────────────────────────────────────────────────
+  function spawnParticles(x, y, color, count) {
+    for (let i = 0; i < count; i++) {
+      particles.push({ x, y, vx:(Math.random()-0.5)*200, vy:(Math.random()-1)*150,
+        life:0.4+Math.random()*0.3, color, size:2+Math.random()*3 });
+    }
+  }
+
+  function respawn() {
+    lives--;
+    if (lives <= 0) { gameOver = true; return; }
+    player.x = lvl.spawnX; player.y = lvl.spawnY; player.vx = 0; player.vy = 0;
+    hurtTimer = 1.5;
+  }
+
+  // ── Update ─────────────────────────────────────────────────────
+  const GRAVITY = 950, MOVE_SPEED = 230, JUMP_VEL = -430, FRICTION = 0.82;
+
+  function update(dt) {
+    if (showingLevelIntro > 0) { showingLevelIntro -= dt; return; }
+    if (levelTransition > 0) {
+      levelTransition -= dt;
+      if (levelTransition <= 0) {
+        // Save progress for completed level
+        saveProgress(currentLevel, score, lvl.maxScore);
+        totalScore += score;
+        currentLevel++;
+        if (currentLevel >= TOTAL_LEVELS) { won = true; }
+        else { score = 0; loadLevel(currentLevel); }
+        buildSidebar();
+        updateSidebarActive();
+      }
+      return;
+    }
+    if (won || gameOver) return;
+    if (hurtTimer > 0) hurtTimer -= dt;
+    const p = player;
+
+    if (kLeft())       { p.vx = -MOVE_SPEED; p.facing = -1; }
+    else if (kRight()) { p.vx = MOVE_SPEED;  p.facing = 1; }
+    else p.vx *= FRICTION;
+    if (Math.abs(p.vx) < 5) p.vx = 0;
+
+    const newAnimState = Math.abs(p.vx) > 20 ? (p.facing > 0 ? 'walkR' : 'walkL') : 'idle';
+    if (newAnimState !== animState) { animFrame = 0; animTimer = 0; }
+    animState = newAnimState;
+    const anim = PLAYER_ANIMS[animState];
+    animTimer += dt;
+    if (animTimer >= anim.speed) { animTimer = 0; animFrame = (animFrame+1) % anim.count; }
+
+    if (kJump() && !p.jumpHeld && p.jumpsLeft > 0) {
+      p.vy = JUMP_VEL; p.jumpsLeft--; p.jumpHeld = true; p.onGround = false;
+    }
+    if (!kJump()) p.jumpHeld = false;
+
+    // Shoot arrow
+    if (kShoot() && !shootHeld && arrowsLeft > 0) {
+      shootHeld = true; arrowsLeft--;
+      arrows.push({ x: p.x + p.w/2, y: p.y + p.h/2 - 4, dir: p.facing, life: 2.0 });
+    }
+    if (!kShoot()) shootHeld = false;
+
+    // Update arrows
+    const ARROW_SPEED = 500;
+    for (const a of arrows) {
+      a.x += ARROW_SPEED * a.dir * dt;
+      a.life -= dt;
+      // Check arrow vs monsters
+      for (let mi = monsters.length - 1; mi >= 0; mi--) {
+        const m = monsters[mi];
+        if (a.x > m.x && a.x < m.x + m.w && a.y > m.y && a.y < m.y + m.h) {
+          spawnParticles(m.x + m.w/2, m.y + m.h/2, '#ff6644', 15);
+          monsters.splice(mi, 1);
+          a.life = 0;
+          break;
+        }
+      }
+    }
+    arrows = arrows.filter(a => a.life > 0);
+
+    p.vy += GRAVITY * dt;
+    if (p.vy > 600) p.vy = 600;
+    p.x += p.vx * dt;
+    if (p.x < 0) p.x = 0;
+    p.y += p.vy * dt;
+
+    const t = performance.now() / 1000;
+    for (const mp of movingPlats) {
+      lvl.platforms[mp.idx][1] = mp.origY + Math.sin(t * 1.5 + mp.phase) * mp.range;
+    }
+
+    p.onGround = false;
+    for (const plat of lvl.platforms) {
+      const px=plat[0], py=plat[1], pw=plat[2];
+      if (p.x+p.w > px && p.x < px+pw) {
+        if (p.vy >= 0 && p.y+p.h >= py && p.y+p.h <= py+PLAT_H+p.vy*dt+8) {
+          p.y = py-p.h; p.vy = 0; p.onGround = true; p.jumpsLeft = 2;
+        }
+      }
+    }
+
+    if (p.y > H + 100) respawn();
+
+    for (const m of monsters) {
+      const plat = lvl.platforms[m.platIdx];
+      m.platX = plat[0]; m.platW = plat[2]; m.y = plat[1]-m.h;
+      m.x += m.speed * m.dir * dt;
+      if (m.x <= m.platX+5) { m.x = m.platX+5; m.dir = 1; }
+      if (m.x+m.w >= m.platX+m.platW-5) { m.x = m.platX+m.platW-m.w-5; m.dir = -1; }
+      m.animTimer += dt;
+      if (m.animTimer >= MONSTER_WALK_SPEED) { m.animTimer = 0; m.animFrame = (m.animFrame+1) % MONSTER_FRAME_COUNT; }
+      if (hurtTimer <= 0) {
+        const dx=(p.x+p.w/2)-(m.x+m.w/2), dy=(p.y+p.h/2)-(m.y+m.h/2);
+        if (Math.abs(dx)<(p.w+m.w)/2-4 && Math.abs(dy)<(p.h+m.h)/2-4) {
+          spawnParticles(p.x+p.w/2,p.y+p.h/2,'#ff4444',12); respawn();
+        }
+      }
+    }
+
+    for (const c of coins) { if (!c.alive) continue;
+      if (Math.abs(p.x+p.w/2-c.x)<18 && Math.abs(p.y+p.h/2-c.y)<18) { c.alive=false; score+=10; spawnParticles(c.x,c.y,'#ffdd44',6); } }
+    for (const g of gems) { if (!g.alive) continue;
+      if (Math.abs(p.x+p.w/2-g.x)<20 && Math.abs(p.y+p.h/2-g.y)<20) { g.alive=false; score+=50; spawnParticles(g.x,g.y,'#44ffaa',10); } }
+    for (const k of keyItems) { if (k.collected) continue;
+      if (Math.abs(p.x+p.w/2-k.x)<20 && Math.abs(p.y+p.h/2-k.y)<22) { k.collected=true; score+=100; doors[k.doorIndex].unlocked=true; spawnParticles(k.x,k.y,'#ff6644',15); } }
+    for (const door of doors) {
+      if (!door.unlocked || door.opened) continue;
+      if (Math.abs((p.x+p.w/2)-(door.x+door.w/2))<24 && Math.abs((p.y+p.h/2)-(door.y+door.h/2))<28) {
+        door.opened=true; spawnParticles(door.x+door.w/2,door.y+door.h/2,'#fff',20);
+        if (door.exit) { levelTransition=1.5; }
+        else { lvl.spawnX = door.x + door.w/2 - 12; lvl.spawnY = door.y - 8; }
+      }
+    }
+
+    for (const pt of particles) { pt.x+=pt.vx*dt; pt.y+=pt.vy*dt; pt.vy+=300*dt; pt.life-=dt; }
+    particles = particles.filter(pt => pt.life > 0);
+
+    const targetCam = p.x - W / 3;
+    cam.x += (targetCam - cam.x) * 5 * dt;
+    if (cam.x < 0) cam.x = 0;
+  }
+
+  // ── Draw ───────────────────────────────────────────────────────
+  function drawMountainLayer(color, baseY, amplitude, freq, parallax, seed) {
+    const ox = -cam.x * parallax;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(0, H);
+    for (let x = 0; x <= W; x += 3) {
+      const wx = (x - ox) * freq;
+      const y = baseY + Math.sin(wx * 0.005 + seed) * amplitude * 0.6
+                       + Math.sin(wx * 0.013 + seed * 2.3) * amplitude * 0.3
+                       + Math.sin(wx * 0.031 + seed * 4.1) * amplitude * 0.1;
+      ctx.lineTo(x, y);
+    }
+    ctx.lineTo(W, H);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function draw() {
+    const t = performance.now() / 1000;
+    // Sky gradient
+    const grad = ctx.createLinearGradient(0,0,0,H);
+    grad.addColorStop(0, lvl.sky); grad.addColorStop(1, lvl.bg2);
+    ctx.fillStyle = grad; ctx.fillRect(0,0,W,H);
+
+    // Clouds
+    ctx.fillStyle = lvl.cloud;
+    for (const c of clouds) {
+      const cx2 = ((c.x - cam.x * 0.05 + t * 8) % (W + 300)) - 150;
+      ctx.beginPath();
+      ctx.ellipse(cx2, c.y, c.w / 2, c.h / 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(cx2 - c.w * 0.25, c.y + c.h * 0.1, c.w * 0.35, c.h * 0.4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(cx2 + c.w * 0.28, c.y + c.h * 0.08, c.w * 0.3, c.h * 0.35, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 3 mountain layers (back to front, slower to faster parallax)
+    const ms = currentLevel * 7 + 13;
+    drawMountainLayer(lvl.mt[0], 280, 110, 1.0, 0.04, ms);
+    drawMountainLayer(lvl.mt[1], 330, 80, 1.4, 0.08, ms * 2.7);
+    drawMountainLayer(lvl.mt[2], 370, 55, 1.9, 0.14, ms * 5.3);
+
+    ctx.save(); ctx.translate(-cam.x,0);
+
+    // platforms
+    for (let i=0;i<lvl.platforms.length;i++) {
+      const p=lvl.platforms[i],px=p[0],py=p[1],pw=p[2];
+      const isMoving=movingPlats.some(mp=>mp.idx===i);
+      ctx.fillStyle=lvl.platColor[0]; ctx.fillRect(px,py,pw,4);
+      ctx.fillStyle=lvl.platColor[1]; ctx.fillRect(px,py+4,pw,PLAT_H-4);
+      ctx.fillStyle=lvl.platColor[2]; ctx.fillRect(px,py,pw,1);
+      ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.fillRect(px+2,py+PLAT_H,pw-4,3);
+      if (isMoving) {
+        ctx.fillStyle='rgba(255,255,255,0.15)';
+        const mid=px+pw/2;
+        ctx.beginPath();ctx.moveTo(mid-4,py+6);ctx.lineTo(mid,py+2);ctx.lineTo(mid+4,py+6);ctx.fill();
+        ctx.beginPath();ctx.moveTo(mid-4,py+10);ctx.lineTo(mid,py+14);ctx.lineTo(mid+4,py+10);ctx.fill();
+      }
+    }
+    // coins
+    for (const c of coins) { if (!c.alive) continue;
+      const bob=Math.sin(t*3+c.x)*3;
+      ctx.fillStyle='#ffdd44';ctx.beginPath();ctx.arc(c.x,c.y+bob,7,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#ffee88';ctx.beginPath();ctx.arc(c.x-2,c.y+bob-2,2.5,0,Math.PI*2);ctx.fill();
+    }
+    // gems
+    for (const g of gems) { if (!g.alive) continue;
+      const bob=Math.sin(t*2.5+g.x)*4;
+      ctx.save();ctx.translate(g.x,g.y+bob);
+      ctx.fillStyle='#44ffaa';ctx.beginPath();ctx.moveTo(0,-11);ctx.lineTo(9,0);ctx.lineTo(0,11);ctx.lineTo(-9,0);ctx.closePath();ctx.fill();
+      ctx.fillStyle='#88ffcc';ctx.beginPath();ctx.moveTo(0,-6);ctx.lineTo(4,0);ctx.lineTo(0,3);ctx.lineTo(-4,0);ctx.closePath();ctx.fill();
+      ctx.restore();
+    }
+    // keys
+    for (const k of keyItems) { if (k.collected) continue;
+      const bob=Math.sin(t*4+k.x)*5;
+      ctx.save();ctx.translate(k.x,k.y+bob);
+      ctx.fillStyle='rgba(255,100,50,0.18)';ctx.beginPath();ctx.arc(0,0,20,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#ff6644';ctx.fillRect(-2,-8,4,18);
+      ctx.strokeStyle='#ff6644';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,-12,7,0,Math.PI*2);ctx.stroke();
+      ctx.fillRect(2,5,6,2);ctx.fillRect(2,1,5,2);
+      ctx.restore();
+    }
+    // doors
+    for (const door of doors) {
+      if (door.opened) {
+        ctx.fillStyle='#224422';ctx.fillRect(door.x,door.y,door.w,door.h);
+        ctx.fillStyle='#000';ctx.fillRect(door.x+5,door.y+5,door.w-10,door.h-5);
+      } else if (door.unlocked) {
+        ctx.fillStyle='#55cc77';ctx.fillRect(door.x,door.y,door.w,door.h);
+        ctx.fillStyle='#77eebb';ctx.fillRect(door.x+4,door.y+4,door.w-8,door.h-4);
+        ctx.fillStyle='rgba(85,204,119,0.15)';ctx.beginPath();ctx.arc(door.x+door.w/2,door.y+door.h/2,30,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#fff';ctx.font='bold 9px sans-serif';ctx.textAlign='center';
+        ctx.fillText('ENTER',door.x+door.w/2,door.y-5);
+      } else {
+        ctx.fillStyle='#664433';ctx.fillRect(door.x,door.y,door.w,door.h);
+        ctx.fillStyle='#553322';ctx.fillRect(door.x+4,door.y+4,door.w-8,door.h-4);
+        ctx.fillStyle='#888';ctx.fillRect(door.x+12,door.y+20,8,8);
+        ctx.strokeStyle='#888';ctx.lineWidth=2;ctx.beginPath();ctx.arc(door.x+16,door.y+18,5,Math.PI,0);ctx.stroke();
+        ctx.fillStyle='#aa6644';ctx.font='8px sans-serif';ctx.textAlign='center';
+        ctx.fillText('LOCKED',door.x+door.w/2,door.y-5);
+      }
+      ctx.strokeStyle=door.unlocked?'#77eebb':'#554433';ctx.lineWidth=2;
+      ctx.strokeRect(door.x,door.y,door.w,door.h);
+    }
+    // monsters
+    for (const m of monsters) {
+      const dw=44,dh=48;
+      const frameImg = monsterFrames[m.animFrame % MONSTER_FRAME_COUNT];
+      if (frameImg && frameImg.complete) {
+        ctx.save();ctx.translate(m.x+m.w/2,m.y+m.h);
+        if (m.dir<0) ctx.scale(-1,1);
+        ctx.drawImage(frameImg,0,0,frameImg.naturalWidth,frameImg.naturalHeight,-dw/2,-dh,dw,dh);
+        ctx.restore();
+      } else { ctx.fillStyle='#cc3322';ctx.fillRect(m.x,m.y,m.w,m.h); }
+    }
+    // arrows
+    for (const a of arrows) {
+      ctx.save(); ctx.translate(a.x, a.y);
+      if (a.dir < 0) ctx.scale(-1, 1);
+      // Arrow shaft
+      ctx.fillStyle = '#dda855'; ctx.fillRect(-12, -1, 20, 2);
+      // Arrow head
+      ctx.fillStyle = '#eee';
+      ctx.beginPath(); ctx.moveTo(10, -4); ctx.lineTo(16, 0); ctx.lineTo(10, 4); ctx.closePath(); ctx.fill();
+      // Fletching
+      ctx.fillStyle = '#cc4444';
+      ctx.beginPath(); ctx.moveTo(-12, -3); ctx.lineTo(-8, 0); ctx.lineTo(-12, 3); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+    // particles
+    for (const pt of particles) {
+      ctx.globalAlpha=Math.max(0,pt.life/0.7);ctx.fillStyle=pt.color;
+      ctx.fillRect(pt.x-pt.size/2,pt.y-pt.size/2,pt.size,pt.size);
+    }
+    ctx.globalAlpha=1;
+    // player
+    const p=player, pRow=PLAYER_ANIMS[animState];
+    if (hurtTimer>0&&Math.floor(hurtTimer*10)%2===0) ctx.globalAlpha=0.4;
+    ctx.save();ctx.translate(p.x+p.w/2,p.y+p.h);
+    ctx.drawImage(playerSprite,animFrame*PFW,pRow.row*PFH,PFW,PFH,-20,-46,40,46);
+    ctx.restore();ctx.globalAlpha=1;
+
+    ctx.restore(); // end camera
+
+    // ── HUD ────────────────────────────────────────────────────
+    ctx.fillStyle='rgba(0,0,0,0.6)';ctx.fillRect(10,10,310,55);
+    ctx.strokeStyle='rgba(255,255,255,0.08)';ctx.strokeRect(10,10,310,55);
+    ctx.textAlign='left';
+    ctx.fillStyle='#ffdd44';ctx.font='bold 16px sans-serif';
+    ctx.fillText(`Score: ${score} / ${lvl.maxScore}`,20,32);
+    ctx.fillStyle='#aaa';ctx.font='11px sans-serif';
+    ctx.fillText(`Lv ${currentLevel+1}/${TOTAL_LEVELS}`,200,32);
+    const kc=keyItems.filter(k=>k.collected).length;
+    ctx.fillStyle=kc>0?'#ff6644':'#555';ctx.font='13px sans-serif';
+    ctx.fillText(`Keys: ${kc}/${keyItems.length}`,20,52);
+    const rem=coins.filter(c=>c.alive).length+gems.filter(g=>g.alive).length;
+    ctx.fillStyle='#aaa';ctx.fillText(`Items: ${rem}`,110,52);
+    const dop=doors.filter(d=>d.opened).length;
+    ctx.fillStyle=dop>0?'#55cc77':'#555';ctx.fillText(`Doors: ${dop}/${doors.length}`,200,52);
+
+    ctx.fillStyle='#ff4444';ctx.font='bold 16px sans-serif';ctx.textAlign='right';
+    let h2='';for(let i=0;i<MAX_LIVES;i++) h2+=i<lives?'\u2665 ':'\u2661 ';
+    ctx.fillText(h2,W-15,30);
+    ctx.fillStyle=arrowsLeft>0?'#dda855':'#555';ctx.font='13px sans-serif';
+    ctx.fillText(`\u27B6 ${arrowsLeft}`,W-15,48);
+    if (totalScore>0) { ctx.fillStyle='#aaa';ctx.font='11px sans-serif';ctx.fillText(`Total: ${totalScore}`,W-15,60); }
+
+    // ── Level intro ────────────────────────────────────────────
+    if (showingLevelIntro > 0) {
+      const a=Math.min(1,showingLevelIntro/0.4);
+      ctx.fillStyle=`rgba(0,0,0,${a*0.75})`;ctx.fillRect(0,0,W,H);
+      ctx.globalAlpha=a;ctx.textAlign='center';
+      ctx.fillStyle='#fff';ctx.font='bold 18px sans-serif';
+      ctx.fillText(`LEVEL ${currentLevel+1}`,W/2,H/2-40);
+      ctx.fillStyle=lvl.platColor[2];ctx.font='bold 36px sans-serif';
+      ctx.fillText(lvl.name,W/2,H/2+5);
+      ctx.fillStyle='#888';ctx.font='14px sans-serif';
+      ctx.fillText(`${keyItems.length} keys \u2022 ${doors.length} doors \u2022 ${monsters.length} monsters \u2022 Max: ${lvl.maxScore} pts`,W/2,H/2+38);
+      ctx.globalAlpha=1;
+    }
+
+    // ── Level transition ───────────────────────────────────────
+    if (levelTransition > 0) {
+      const a=1-(levelTransition/1.5);
+      ctx.fillStyle=`rgba(0,0,0,${a})`;ctx.fillRect(0,0,W,H);
+      ctx.globalAlpha=Math.min(1,a*2);ctx.textAlign='center';
+      ctx.fillStyle='#44ffaa';ctx.font='bold 34px sans-serif';
+      ctx.fillText('LEVEL COMPLETE!',W/2,H/2-15);
+      ctx.fillStyle='#fff';ctx.font='20px sans-serif';
+      ctx.fillText(`${score} / ${lvl.maxScore} pts`,W/2,H/2+20);
+      const pct = Math.round(score/lvl.maxScore*100);
+      ctx.fillStyle='#aaa';ctx.font='14px sans-serif';
+      ctx.fillText(`${pct}% collected`,W/2,H/2+45);
+      ctx.globalAlpha=1;
+    }
+
+    // ── Game over ──────────────────────────────────────────────
+    if (gameOver) {
+      ctx.fillStyle='rgba(0,0,0,0.75)';ctx.fillRect(0,0,W,H);
+      ctx.textAlign='center';
+      ctx.fillStyle='#ff4444';ctx.font='bold 48px sans-serif';
+      ctx.fillText('GAME OVER',W/2,H/2-30);
+      ctx.fillStyle='#aaa';ctx.font='18px sans-serif';
+      ctx.fillText(`Level ${currentLevel+1}  \u2022  Score: ${score}`,W/2,H/2+10);
+      ctx.fillStyle='#888';ctx.font='16px sans-serif';
+      ctx.fillText('Press R to retry level',W/2,H/2+45);
+    }
+
+    // ── Win ────────────────────────────────────────────────────
+    if (won) {
+      ctx.fillStyle='rgba(0,0,0,0.75)';ctx.fillRect(0,0,W,H);
+      ctx.textAlign='center';
+      ctx.fillStyle='#ffdd44';ctx.font='bold 48px sans-serif';
+      ctx.fillText('YOU WIN!',W/2,H/2-45);
+      ctx.fillStyle='#44ffaa';ctx.font='bold 24px sans-serif';
+      ctx.fillText(`Total Score: ${totalScore}`,W/2,H/2);
+      ctx.fillStyle='#aaa';ctx.font='16px sans-serif';
+      ctx.fillText('All 100 levels complete! Press R to play again',W/2,H/2+35);
+    }
+  }
+
+  // ── Keyboard events ────────────────────────────────────────────
+  window.addEventListener('keydown', e => {
+    if (e.code === 'KeyR') doRestart();
+  });
+
+  // ── Game loop ──────────────────────────────────────────────────
+  let lastTime = performance.now();
+  function loop(time) {
+    const dt = Math.min((time-lastTime)/1000, 0.05);
+    lastTime = time;
+    update(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+  </script>
+</body>
+</html>

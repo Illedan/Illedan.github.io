@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Embrik — 3D World</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { overflow: hidden; background: #000; touch-action: none; }
+    canvas { display: block; }
+    #ui {
+      position: fixed; bottom: 15px; left: 50%; transform: translateX(-50%);
+      color: #eee; font-family: monospace; font-size: 13px;
+      background: rgba(0,0,0,0.5); padding: 6px 14px; border-radius: 6px;
+      white-space: nowrap; pointer-events: none;
+    }
+    #inventory {
+      position: fixed; top: 15px; right: 15px;
+      color: #eee; font-family: monospace; font-size: 14px;
+      background: rgba(0,0,0,0.6); padding: 10px 16px; border-radius: 8px;
+      line-height: 1.7; pointer-events: none;
+    }
+    #healthbar {
+      position: fixed; top: 15px; left: 50%; transform: translateX(-50%);
+      width: 200px; height: 20px;
+      background: rgba(0,0,0,0.6); border-radius: 10px; overflow: hidden;
+      border: 2px solid #555; pointer-events: none;
+    }
+    #healthfill {
+      width: 100%; height: 100%;
+      background: linear-gradient(90deg, #cc0000, #ff3333);
+      transition: width 0.3s;
+    }
+    #healthtext {
+      position: fixed; top: 38px; left: 50%; transform: translateX(-50%);
+      color: #eee; font-family: monospace; font-size: 12px; pointer-events: none;
+    }
+    #message {
+      position: fixed; top: 55%; left: 50%; transform: translate(-50%, -50%);
+      color: #fff; font-family: monospace; font-size: 18px; font-weight: bold;
+      background: rgba(0,0,0,0.7); padding: 10px 20px; border-radius: 8px;
+      pointer-events: none; opacity: 0; transition: opacity 0.3s;
+    }
+    #daytime {
+      position: fixed; top: 15px; left: 15px;
+      color: #eee; font-family: monospace; font-size: 14px;
+      background: rgba(0,0,0,0.6); padding: 10px 16px; border-radius: 8px;
+      pointer-events: none;
+    }
+    #furnMenu {
+      position: fixed; left: 15px; top: 50%; transform: translateY(-50%);
+      background: rgba(0,0,0,0.85); color: #eee; font-family: monospace;
+      font-size: 14px; padding: 16px 22px; border-radius: 10px;
+      display: none; min-width: 240px; z-index: 10;
+      max-height: 80vh; overflow-y: auto;
+    }
+    #furnMenu h3 { margin-bottom: 10px; text-align: center; color: #ffd700; }
+    .furn-item {
+      padding: 8px; margin: 3px 0; cursor: pointer; border-radius: 4px;
+      display: flex; justify-content: space-between;
+    }
+    .furn-item:hover, .furn-item:active, .furn-item.selected { background: rgba(255,255,255,0.15); }
+    .furn-item.selected { border: 1px solid #ffd700; }
+    .furn-item .cost { color: #ffd700; }
+    #deathScreen {
+      position: fixed; inset: 0; background: rgba(100,0,0,0.7);
+      display: none; align-items: center; justify-content: center;
+      flex-direction: column; z-index: 20;
+    }
+    #deathScreen h1 { color: #ff3333; font-family: monospace; font-size: 48px; margin-bottom: 20px; }
+    #deathScreen button {
+      font-family: monospace; font-size: 20px; padding: 10px 30px;
+      background: #333; color: #eee; border: 2px solid #888; border-radius: 8px; cursor: pointer;
+    }
+    /* ── Touch controls ─────────────────────────── */
+    #touchControls { display: none; position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+    #joystickZone {
+      position: absolute; left: 20px; bottom: 20px;
+      width: 140px; height: 140px; pointer-events: auto;
+    }
+    #joystickBase {
+      width: 140px; height: 140px; border-radius: 50%;
+      background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.3);
+      position: relative;
+    }
+    #joystickKnob {
+      width: 50px; height: 50px; border-radius: 50%;
+      background: rgba(255,255,255,0.5);
+      position: absolute; left: 45px; top: 45px;
+      pointer-events: none;
+    }
+    #lookZone {
+      position: absolute; right: 0; top: 0; bottom: 80px; left: 50%;
+      pointer-events: auto;
+    }
+    .touch-btn {
+      position: absolute; pointer-events: auto;
+      width: 56px; height: 56px; border-radius: 50%;
+      background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.4);
+      color: #fff; font-family: monospace; font-size: 11px; font-weight: bold;
+      display: flex; align-items: center; justify-content: center;
+      user-select: none; -webkit-user-select: none;
+    }
+    .touch-btn:active { background: rgba(255,255,255,0.45); }
+    #btnJump { right: 20px; bottom: 20px; }
+    #btnChop { right: 90px; bottom: 20px; }
+    #btnSword { right: 20px; bottom: 90px; }
+    #btnBuild { right: 90px; bottom: 90px; }
+    #btnFurn { right: 160px; bottom: 20px; }
+  </style>
+</head>
+<body>
+  <div id="ui">WASD move · Mouse look · Space jump · E chop · F sword · B house · G furniture</div>
+  <div id="inventory"></div>
+  <div id="healthbar"><div id="healthfill"></div></div>
+  <div id="healthtext">100 / 100</div>
+  <div id="message"></div>
+  <div id="daytime"></div>
+  <div id="furnMenu">
+    <h3>Furniture (G to close)<br><small style="color:#aaa;font-weight:normal">Hover to preview · Click to place</small></h3>
+    <div id="furnList"></div>
+  </div>
+  <div id="deathScreen">
+    <h1>YOU DIED</h1>
+    <button onclick="respawn()">Respawn</button>
+  </div>
+  <!-- Touch controls -->
+  <div id="touchControls">
+    <div id="joystickZone">
+      <div id="joystickBase"><div id="joystickKnob"></div></div>
+    </div>
+    <div id="lookZone"></div>
+    <div id="btnJump" class="touch-btn">JUMP</div>
+    <div id="btnChop" class="touch-btn">AXE</div>
+    <div id="btnSword" class="touch-btn">SWORD</div>
+    <div id="btnBuild" class="touch-btn">BUILD</div>
+    <div id="btnFurn" class="touch-btn">FURN</div>
+  </div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+  // ── Touch detection ────────────────────────────────────────────
+  const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+  if (isTouchDevice) {
+    document.getElementById('touchControls').style.display = 'block';
+    document.getElementById('ui').style.display = 'none';
+  }
+
+  // ── Scene setup ──────────────────────────────────────────────
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x87ceeb);
+  scene.fog = new THREE.Fog(0x87ceeb, 80, 200);
+
+  const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 300);
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  document.body.appendChild(renderer.domElement);
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  // ── Lighting ─────────────────────────────────────────────────
+  const ambient = new THREE.AmbientLight(0x666688, 0.6);
+  scene.add(ambient);
+
+  const sun = new THREE.DirectionalLight(0xffeedd, 1.0);
+  sun.position.set(30, 50, 20);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(1024, 1024);
+  sun.shadow.camera.left = -60; sun.shadow.camera.right = 60;
+  sun.shadow.camera.top = 60; sun.shadow.camera.bottom = -60;
+  scene.add(sun);
+
+  // ── Day/Night cycle ────────────────────────────────────────────
+  const DAY_DURATION = 60;
+  let gameTime = 0, isNight = false;
+  const daytimeEl = document.getElementById('daytime');
+  const dayColor = new THREE.Color(0x87ceeb);
+  const sunsetColor = new THREE.Color(0xff7733);
+  const nightColor = new THREE.Color(0x0a0a2e);
+
+  function updateDayNight(dt) {
+    gameTime = (gameTime + dt / DAY_DURATION) % 1.0;
+    let skyColor, sunIntensity, ambientIntensity, phase;
+    if (gameTime < 0.25) {
+      phase = 'Day'; skyColor = dayColor; sunIntensity = 1.0; ambientIntensity = 0.6;
+    } else if (gameTime < 0.35) {
+      phase = 'Sunset'; const t = (gameTime - 0.25) / 0.1;
+      skyColor = dayColor.clone().lerp(sunsetColor, t * 0.5).lerp(nightColor, t * 0.5);
+      sunIntensity = 1.0 - t * 0.85; ambientIntensity = 0.6 - t * 0.45;
+    } else if (gameTime < 0.65) {
+      phase = 'Night'; skyColor = nightColor; sunIntensity = 0.15; ambientIntensity = 0.15;
+    } else if (gameTime < 0.75) {
+      phase = 'Sunrise'; const t = (gameTime - 0.65) / 0.1;
+      skyColor = nightColor.clone().lerp(sunsetColor, t * 0.5).lerp(dayColor, t * 0.5);
+      sunIntensity = 0.15 + t * 0.85; ambientIntensity = 0.15 + t * 0.45;
+    } else {
+      phase = 'Day'; skyColor = dayColor; sunIntensity = 1.0; ambientIntensity = 0.6;
+    }
+    const wasNight = isNight;
+    isNight = gameTime >= 0.33 && gameTime < 0.67;
+    scene.background.copy(skyColor); scene.fog.color.copy(skyColor);
+    sun.intensity = sunIntensity; ambient.intensity = ambientIntensity;
+    const sunAngle = gameTime * Math.PI * 2;
+    sun.position.set(Math.cos(sunAngle) * 50, Math.sin(sunAngle) * 50 + 10, 20);
+    daytimeEl.textContent = phase;
+    if (isNight && !wasNight) spawnZombies();
+    if (!isNight && wasNight) despawnAllZombies();
+  }
+
+  // ── Ground ───────────────────────────────────────────────────
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(300, 300),
+    new THREE.MeshLambertMaterial({ color: 0x4a8a3a })
+  );
+  ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
+  scene.add(ground);
+
+  // ── Health ───────────────────────────────────────────────────
+  let health = 100, dead = false, damageCooldown = 0;
+  const healthFill = document.getElementById('healthfill');
+  const healthText = document.getElementById('healthtext');
+  const deathScreen = document.getElementById('deathScreen');
+
+  function updateHealthUI() {
+    healthFill.style.width = Math.max(0, health) + '%';
+    healthText.textContent = Math.max(0, health) + ' / 100';
+    healthFill.style.background = health <= 30
+      ? 'linear-gradient(90deg, #880000, #cc0000)'
+      : 'linear-gradient(90deg, #cc0000, #ff3333)';
+  }
+
+  function takeDamage(amount) {
+    if (dead || damageCooldown > 0) return;
+    health -= amount; damageCooldown = 0.8;
+    updateHealthUI();
+    bodyMat.color.setHex(0xff0000);
+    setTimeout(() => { if (!dead) bodyMat.color.setHex(0x3366cc); }, 200);
+    if (health <= 0) { dead = true; deathScreen.style.display = 'flex'; }
+  }
+
+  function respawn() {
+    health = 100; dead = false; updateHealthUI();
+    deathScreen.style.display = 'none';
+    charGroup.position.set(0, 0, 0); bodyMat.color.setHex(0x3366cc);
+  }
+
+  // ── Character ──────────────────────────────────────────────────
+  const charGroup = new THREE.Group();
+  const bodyMat = new THREE.MeshLambertMaterial({ color: 0x3366cc });
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 12), bodyMat);
+  body.position.y = 0.5; body.castShadow = true; charGroup.add(body);
+  const headMat = new THREE.MeshLambertMaterial({ color: 0xffcc88 });
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 12), headMat);
+  head.position.y = 1.2; head.castShadow = true; charGroup.add(head);
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0x222222 });
+  const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), eyeMat);
+  eyeL.position.set(-0.12, 1.28, 0.28); charGroup.add(eyeL);
+  const eyeR = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), eyeMat);
+  eyeR.position.set(0.12, 1.28, 0.28); charGroup.add(eyeR);
+  scene.add(charGroup);
+
+  // Jumping
+  let charVY = 0, charOnGround = true;
+  const GRAVITY = -18, JUMP_FORCE = 8;
+
+  // ── Axe ────────────────────────────────────────────────────────
+  const axeGroup = new THREE.Group();
+  axeGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.6, 6), new THREE.MeshLambertMaterial({ color: 0x8B4513 })));
+  const bs = new THREE.Shape(); bs.moveTo(0,0); bs.lineTo(0.2,0.12); bs.lineTo(0.2,-0.12); bs.lineTo(0,0);
+  const ab = new THREE.Mesh(new THREE.ExtrudeGeometry(bs, { depth: 0.04, bevelEnabled: false }), new THREE.MeshLambertMaterial({ color: 0xaaaaaa }));
+  ab.position.set(0, 0.22, -0.02); axeGroup.add(ab);
+  axeGroup.position.set(0.55, 0.7, 0.2); axeGroup.rotation.z = -0.3;
+  charGroup.add(axeGroup);
+
+  // ── Sword ──────────────────────────────────────────────────────
+  const swordGroup = new THREE.Group();
+  const sh = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.3, 6), new THREE.MeshLambertMaterial({ color: 0x5a3010 }));
+  sh.position.y = -0.05; swordGroup.add(sh);
+  const sg = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.04, 0.06), new THREE.MeshLambertMaterial({ color: 0xccaa00 }));
+  sg.position.y = 0.1; swordGroup.add(sg);
+  const sbp = [new THREE.Vector2(0,0), new THREE.Vector2(0.06,0), new THREE.Vector2(0.03,0.55),
+    new THREE.Vector2(0,0.6), new THREE.Vector2(-0.03,0.55), new THREE.Vector2(-0.06,0)];
+  const sbl = new THREE.Mesh(new THREE.ExtrudeGeometry(new THREE.Shape(sbp), { depth: 0.02, bevelEnabled: false }),
+    new THREE.MeshLambertMaterial({ color: 0xccccdd }));
+  sbl.position.set(0, 0.12, -0.01); swordGroup.add(sbl);
+  swordGroup.position.set(-0.55, 0.7, 0.2); swordGroup.rotation.z = 0.3;
+  charGroup.add(swordGroup);
+
+  // ── Seeded RNG (so trees/coins are identical every load) ─────
+  let _seed = 12345;
+  function seededRandom() {
+    _seed = (_seed * 16807 + 0) % 2147483647;
+    return (_seed - 1) / 2147483646;
+  }
+
+  // ── Trees ────────────────────────────────────────────────────
+  const trees = [];
+  function addTree(x, z) {
+    const g = new THREE.Group();
+    const th = 1.5 + seededRandom() * 1.5, tr = 0.15 + seededRandom() * 0.1;
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(tr * 0.7, tr, th, 8), new THREE.MeshLambertMaterial({ color: 0x6b4226 }));
+    trunk.position.y = th / 2; trunk.castShadow = true; g.add(trunk);
+    const layers = 2 + Math.floor(seededRandom() * 2);
+    const fc = new THREE.Color().setHSL(0.28 + seededRandom() * 0.08, 0.6 + seededRandom() * 0.2, 0.25 + seededRandom() * 0.15);
+    for (let i = 0; i < layers; i++) {
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(1.2 - i * 0.25 + seededRandom() * 0.3, 1.5 + seededRandom() * 0.5, 8),
+        new THREE.MeshLambertMaterial({ color: fc }));
+      cone.position.y = th + i * 1.0 + 0.5; cone.castShadow = true; g.add(cone);
+    }
+    g.position.set(x, 0, z); scene.add(g);
+    trees.push({ mesh: g, x, z, radius: 0.6 });
+  }
+  function addRandomTrees(count, minD, maxD) {
+    for (let i = 0; i < count; i++) {
+      let x, z, bad, att = 0;
+      do {
+        const a = seededRandom() * Math.PI * 2, d = minD + seededRandom() * (maxD - minD);
+        x = Math.cos(a) * d; z = Math.sin(a) * d;
+        bad = Math.hypot(x, z) < 3;
+        if (!bad) for (const t of trees) { if (Math.hypot(x - t.x, z - t.z) < 2.5) { bad = true; break; } }
+        att++;
+      } while (bad && att < 20);
+      if (!bad) addTree(x, z);
+    }
+  }
+  addRandomTrees(120, 5, 130);
+
+  // ── Inventory ──────────────────────────────────────────────────
+  const inventory = { coins: 0, wood: 0, kills: 0 };
+  const inventoryEl = document.getElementById('inventory');
+  const messageEl = document.getElementById('message');
+  let msgTimeout = null;
+  function updateInventoryUI() {
+    inventoryEl.innerHTML = `🪙 ${inventory.coins}  🪵 ${inventory.wood}  💀 ${inventory.kills}`;
+  }
+  updateInventoryUI();
+  function showMessage(text) {
+    messageEl.textContent = text; messageEl.style.opacity = 1;
+    clearTimeout(msgTimeout);
+    msgTimeout = setTimeout(() => { messageEl.style.opacity = 0; }, 1500);
+  }
+
+  // ── Coins ──────────────────────────────────────────────────────
+  const coins = [];
+  function addCoin(x, z) {
+    const coin = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.05, 16),
+      new THREE.MeshLambertMaterial({ color: 0xffd700, emissive: 0x332200 }));
+    coin.position.set(x, 0.3, z); coin.castShadow = true; scene.add(coin);
+    coins.push({ mesh: coin, x, z, collected: false });
+  }
+  for (let i = 0; i < 30; i++) {
+    const a = seededRandom() * Math.PI * 2, d = 4 + seededRandom() * 90;
+    const cx = Math.cos(a) * d, cz = Math.sin(a) * d;
+    let ok = true;
+    for (const t of trees) { if (Math.hypot(cx - t.x, cz - t.z) < 2) { ok = false; break; } }
+    if (ok) addCoin(cx, cz);
+  }
+
+  // ── Grid system ──────────────────────────────────────────────────
+  const GRID = 2; // 2-unit grid cells
+  function snapToGrid(v) { return Math.round(v / GRID) * GRID; }
+
+  // Grid visual on the ground
+  const gridHelper = new THREE.GridHelper(300, 300 / GRID, 0x446644, 0x336633);
+  gridHelper.position.y = 0.02;
+  gridHelper.material.opacity = 0.18;
+  gridHelper.material.transparent = true;
+  scene.add(gridHelper);
+
+  // ── Placement preview ghost ────────────────────────────────────
+  let previewMesh = null;
+  let selectedFurnIdx = -1; // which furniture item is hovered/selected for preview
+
+  function getPlacementPos() {
+    const fa = charGroup.rotation.y;
+    const ahead = 3;
+    const rawX = charGroup.position.x + Math.sin(fa) * ahead;
+    const rawZ = charGroup.position.z + Math.cos(fa) * ahead;
+    return { x: snapToGrid(rawX), z: snapToGrid(rawZ) };
+  }
+
+  function getHousePlacementPos() {
+    const fa = charGroup.rotation.y;
+    const rawX = charGroup.position.x + Math.sin(fa) * 8;
+    const rawZ = charGroup.position.z + Math.cos(fa) * 8;
+    return { x: snapToGrid(rawX), z: snapToGrid(rawZ) };
+  }
+
+  function setPreview(index) {
+    clearPreview();
+    selectedFurnIdx = index;
+    if (index < 0) return;
+    const def = FURNITURE_DEFS[index];
+    const result = def.build();
+    previewMesh = result.group;
+    // Make all children transparent/ghost
+    previewMesh.traverse(child => {
+      if (child.isMesh) {
+        child.material = child.material.clone();
+        child.material.transparent = true;
+        child.material.opacity = 0.45;
+        child.material.color.multiplyScalar(0.7);
+        // Add green tint
+        child.material.emissive = new THREE.Color(0x00ff00);
+        child.material.emissiveIntensity = 0.15;
+      }
+    });
+    scene.add(previewMesh);
+  }
+
+  function clearPreview() {
+    if (previewMesh) { scene.remove(previewMesh); previewMesh = null; }
+    selectedFurnIdx = -1;
+  }
+
+  function updatePreview() {
+    if (!previewMesh || selectedFurnIdx < 0) return;
+    const pos = getPlacementPos();
+    previewMesh.position.set(pos.x, 0, pos.z);
+    previewMesh.rotation.y = charGroup.rotation.y;
+
+    // Check if placement is valid — turn red if blocked
+    let blocked = false;
+    const def = FURNITURE_DEFS[selectedFurnIdx];
+    const result = def.build(); // just to get radius
+    for (const item of furnitureItems) {
+      if (Math.hypot(pos.x - item.x, pos.z - item.z) < item.radius + 0.5) { blocked = true; break; }
+    }
+    for (const t of trees) {
+      if (Math.hypot(pos.x - t.x, pos.z - t.z) < t.radius + 0.5) { blocked = true; break; }
+    }
+
+    previewMesh.traverse(child => {
+      if (child.isMesh) {
+        child.material.emissive.setHex(blocked ? 0xff0000 : 0x00ff00);
+      }
+    });
+  }
+
+  // ── Helper ─────────────────────────────────────────────────────
+  function makeMesh(geo, color, x, y, z, rx, ry, rz) {
+    const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color }));
+    m.position.set(x || 0, y || 0, z || 0);
+    if (rx) m.rotation.x = rx; if (ry) m.rotation.y = ry; if (rz) m.rotation.z = rz;
+    m.castShadow = true; return m;
+  }
+
+  // ── Furniture ──────────────────────────────────────────────────
+  const furnitureItems = [];
+  const FURNITURE_DEFS = [
+    { name: 'Bench', cost: 2, build() {
+      const g = new THREE.Group();
+      g.add(makeMesh(new THREE.BoxGeometry(1.4, 0.08, 0.5), 0x8B6914, 0, 0.5, 0));
+      g.add(makeMesh(new THREE.BoxGeometry(0.08, 0.5, 0.08), 0x6b4226, -0.6, 0.25, 0.18));
+      g.add(makeMesh(new THREE.BoxGeometry(0.08, 0.5, 0.08), 0x6b4226, 0.6, 0.25, 0.18));
+      g.add(makeMesh(new THREE.BoxGeometry(0.08, 0.5, 0.08), 0x6b4226, -0.6, 0.25, -0.18));
+      g.add(makeMesh(new THREE.BoxGeometry(0.08, 0.5, 0.08), 0x6b4226, 0.6, 0.25, -0.18));
+      g.add(makeMesh(new THREE.BoxGeometry(1.4, 0.5, 0.06), 0x8B6914, 0, 0.8, -0.22));
+      return { group: g, radius: 0.8 };
+    }},
+    { name: 'Table', cost: 3, build() {
+      const g = new THREE.Group();
+      g.add(makeMesh(new THREE.BoxGeometry(1.6, 0.08, 1.0), 0x9a7b4f, 0, 0.85, 0));
+      g.add(makeMesh(new THREE.BoxGeometry(0.08, 0.85, 0.08), 0x6b4226, -0.7, 0.425, 0.4));
+      g.add(makeMesh(new THREE.BoxGeometry(0.08, 0.85, 0.08), 0x6b4226, 0.7, 0.425, 0.4));
+      g.add(makeMesh(new THREE.BoxGeometry(0.08, 0.85, 0.08), 0x6b4226, -0.7, 0.425, -0.4));
+      g.add(makeMesh(new THREE.BoxGeometry(0.08, 0.85, 0.08), 0x6b4226, 0.7, 0.425, -0.4));
+      return { group: g, radius: 0.9 };
+    }},
+    { name: 'Chair', cost: 2, build() {
+      const g = new THREE.Group();
+      g.add(makeMesh(new THREE.BoxGeometry(0.6, 0.06, 0.6), 0x8B6914, 0, 0.45, 0));
+      g.add(makeMesh(new THREE.BoxGeometry(0.06, 0.45, 0.06), 0x6b4226, -0.25, 0.225, 0.25));
+      g.add(makeMesh(new THREE.BoxGeometry(0.06, 0.45, 0.06), 0x6b4226, 0.25, 0.225, 0.25));
+      g.add(makeMesh(new THREE.BoxGeometry(0.06, 0.45, 0.06), 0x6b4226, -0.25, 0.225, -0.25));
+      g.add(makeMesh(new THREE.BoxGeometry(0.06, 0.45, 0.06), 0x6b4226, 0.25, 0.225, -0.25));
+      g.add(makeMesh(new THREE.BoxGeometry(0.6, 0.6, 0.06), 0x8B6914, 0, 0.78, -0.27));
+      return { group: g, radius: 0.5 };
+    }},
+    { name: 'Bookshelf', cost: 5, build() {
+      const g = new THREE.Group();
+      g.add(makeMesh(new THREE.BoxGeometry(1.2, 1.8, 0.4), 0x8B6914, 0, 0.9, 0));
+      for (let i = 0; i < 3; i++) g.add(makeMesh(new THREE.BoxGeometry(1.1, 0.04, 0.35), 0x6b4226, 0, 0.3 + i * 0.55, 0));
+      const bc = [0x8B0000, 0x00008B, 0x006400, 0x8B8B00, 0x4B0082];
+      for (let i = 0; i < 3; i++) for (let j = 0; j < 4; j++)
+        g.add(makeMesh(new THREE.BoxGeometry(0.15, 0.4, 0.25), bc[(i * 4 + j) % 5], -0.35 + j * 0.24, 0.52 + i * 0.55, 0));
+      return { group: g, radius: 0.7 };
+    }},
+    { name: 'Sink', cost: 4, build() {
+      const g = new THREE.Group();
+      g.add(makeMesh(new THREE.BoxGeometry(0.8, 0.6, 0.5), 0xcccccc, 0, 0.85, 0));
+      g.add(makeMesh(new THREE.BoxGeometry(0.6, 0.1, 0.35), 0x4488cc, 0, 1.1, 0));
+      g.add(makeMesh(new THREE.CylinderGeometry(0.15, 0.2, 0.55, 8), 0xcccccc, 0, 0.275, 0));
+      g.add(makeMesh(new THREE.CylinderGeometry(0.03, 0.03, 0.3, 6), 0x888888, 0, 1.3, -0.15));
+      return { group: g, radius: 0.5 };
+    }},
+    { name: 'Bed', cost: 6, build() {
+      const g = new THREE.Group();
+      g.add(makeMesh(new THREE.BoxGeometry(1.2, 0.4, 2.2), 0x6b4226, 0, 0.2, 0));
+      g.add(makeMesh(new THREE.BoxGeometry(1.1, 0.2, 2.0), 0xeeeeee, 0, 0.5, 0));
+      g.add(makeMesh(new THREE.BoxGeometry(0.8, 0.15, 0.35), 0xccccff, 0, 0.65, -0.75));
+      g.add(makeMesh(new THREE.BoxGeometry(1.05, 0.08, 1.2), 0x3355aa, 0, 0.62, 0.3));
+      g.add(makeMesh(new THREE.BoxGeometry(1.2, 0.6, 0.08), 0x5a3010, 0, 0.7, -1.05));
+      return { group: g, radius: 1.2 };
+    }},
+    { name: 'Barrel', cost: 2, build() {
+      const g = new THREE.Group();
+      g.add(makeMesh(new THREE.CylinderGeometry(0.35, 0.4, 0.9, 12), 0x8B6914, 0, 0.45, 0));
+      g.add(makeMesh(new THREE.TorusGeometry(0.38, 0.02, 8, 16), 0x666666, 0, 0.25, 0, Math.PI / 2, 0, 0));
+      g.add(makeMesh(new THREE.TorusGeometry(0.36, 0.02, 8, 16), 0x666666, 0, 0.65, 0, Math.PI / 2, 0, 0));
+      return { group: g, radius: 0.45 };
+    }},
+    { name: 'Lamp Post', cost: 3, build() {
+      const g = new THREE.Group();
+      g.add(makeMesh(new THREE.CylinderGeometry(0.05, 0.07, 2.5, 8), 0x333333, 0, 1.25, 0));
+      g.add(makeMesh(new THREE.SphereGeometry(0.2, 10, 10), 0xffee88, 0, 2.6, 0));
+      const l = new THREE.PointLight(0xffdd66, 1.5, 12); l.position.set(0, 2.6, 0); g.add(l);
+      return { group: g, radius: 0.3 };
+    }},
+    { name: 'Fence', cost: 1, build() {
+      const g = new THREE.Group();
+      g.add(makeMesh(new THREE.BoxGeometry(2.0, 0.08, 0.08), 0x8B6914, 0, 0.5, 0));
+      g.add(makeMesh(new THREE.BoxGeometry(2.0, 0.08, 0.08), 0x8B6914, 0, 0.9, 0));
+      g.add(makeMesh(new THREE.BoxGeometry(0.08, 1.1, 0.08), 0x6b4226, -0.9, 0.55, 0));
+      g.add(makeMesh(new THREE.BoxGeometry(0.08, 1.1, 0.08), 0x6b4226, 0, 0.55, 0));
+      g.add(makeMesh(new THREE.BoxGeometry(0.08, 1.1, 0.08), 0x6b4226, 0.9, 0.55, 0));
+      return { group: g, radius: 1.0 };
+    }},
+    { name: 'Crate', cost: 1, build() {
+      const g = new THREE.Group();
+      g.add(makeMesh(new THREE.BoxGeometry(0.7, 0.7, 0.7), 0x9a7b4f, 0, 0.35, 0));
+      g.add(makeMesh(new THREE.BoxGeometry(0.7, 0.05, 0.05), 0x6b4226, 0, 0.35, 0.36));
+      g.add(makeMesh(new THREE.BoxGeometry(0.05, 0.7, 0.05), 0x6b4226, 0, 0.35, 0.36));
+      return { group: g, radius: 0.5 };
+    }},
+  ];
+
+  // ── Furniture menu ─────────────────────────────────────────────
+  const furnMenu = document.getElementById('furnMenu');
+  const furnList = document.getElementById('furnList');
+  let furnMenuOpen = false;
+  function buildFurnMenu() {
+    furnList.innerHTML = '';
+    FURNITURE_DEFS.forEach((f, i) => {
+      const div = document.createElement('div'); div.className = 'furn-item';
+      div.innerHTML = `<span>${i + 1}. ${f.name}</span><span class="cost">${f.cost} 🪙</span>`;
+      div.addEventListener('click', () => placeFurniture(i));
+      div.addEventListener('touchend', e => { e.preventDefault(); placeFurniture(i); });
+      div.addEventListener('mouseenter', () => { if (furnMenuOpen) { setPreview(i); highlightFurnItem(i); } });
+      div.addEventListener('touchstart', () => { if (furnMenuOpen) { setPreview(i); highlightFurnItem(i); } }, { passive: true });
+      furnList.appendChild(div);
+    });
+  }
+  buildFurnMenu();
+
+  function highlightFurnItem(idx) {
+    furnList.querySelectorAll('.furn-item').forEach((el, i) => {
+      el.classList.toggle('selected', i === idx);
+    });
+  }
+
+  function toggleFurnMenu() {
+    furnMenuOpen = !furnMenuOpen;
+    furnMenu.style.display = furnMenuOpen ? 'block' : 'none';
+    if (furnMenuOpen) {
+      if (pointerLocked) document.exitPointerLock();
+      setPreview(0); // show first item preview by default
+    } else {
+      clearPreview();
+    }
+  }
+
+  function placeFurniture(index) {
+    const def = FURNITURE_DEFS[index];
+    if (inventory.coins < def.cost) { showMessage('Need ' + def.cost + ' coins (have ' + inventory.coins + ')'); return; }
+    const pos = getPlacementPos();
+    const fx = pos.x, fz = pos.z;
+    for (const item of furnitureItems) { if (Math.hypot(fx - item.x, fz - item.z) < item.radius + 0.5) { showMessage('Too close'); return; } }
+    for (const t of trees) { if (Math.hypot(fx - t.x, fz - t.z) < t.radius + 0.5) { showMessage('Too close to tree'); return; } }
+    inventory.coins -= def.cost; updateInventoryUI();
+    const result = def.build();
+    result.group.position.set(fx, 0, fz); result.group.rotation.y = charGroup.rotation.y;
+    scene.add(result.group);
+    furnitureItems.push({ mesh: result.group, x: fx, z: fz, radius: result.radius, typeIdx: index });
+    showMessage(def.name + ' placed!'); toggleFurnMenu();
+  }
+
+  // ── Houses (8x8, with door) ────────────────────────────────────
+  const houses = [];
+  const houseWalls = []; // collision walls for player
+  const houseDoorWalls = []; // door walls - block zombies only
+
+  function buildHouse(x, z, rotY) {
+    const g = new THREE.Group();
+    const W = 8, H = 4.5, THICK = 0.15;
+
+    // Back wall
+    g.add(makeMesh(new THREE.BoxGeometry(W, H, THICK), 0xc8a26b, 0, H / 2, -W / 2));
+    // Left wall
+    g.add(makeMesh(new THREE.BoxGeometry(THICK, H, W), 0xc8a26b, -W / 2, H / 2, 0));
+    // Right wall
+    g.add(makeMesh(new THREE.BoxGeometry(THICK, H, W), 0xc8a26b, W / 2, H / 2, 0));
+
+    // Front wall with door opening
+    const doorW = 1.6, sideW = (W - doorW) / 2;
+    g.add(makeMesh(new THREE.BoxGeometry(sideW, H, THICK), 0xc8a26b, -(doorW / 2 + sideW / 2), H / 2, W / 2));
+    g.add(makeMesh(new THREE.BoxGeometry(sideW, H, THICK), 0xc8a26b, doorW / 2 + sideW / 2, H / 2, W / 2));
+    g.add(makeMesh(new THREE.BoxGeometry(doorW, H - 2.5, THICK), 0xc8a26b, 0, 2.5 + (H - 2.5) / 2, W / 2));
+
+    // Door (visual - brown panel in the doorway)
+    const doorMesh = makeMesh(new THREE.BoxGeometry(doorW - 0.1, 2.4, 0.08), 0x5a3010, 0, 1.2, W / 2 + 0.05);
+    g.add(doorMesh);
+
+    // Floor
+    g.add(makeMesh(new THREE.BoxGeometry(W, 0.1, W), 0x9a7b4f, 0, 0.05, 0));
+
+    // Roof
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(W * 0.82, 3.0, 4), new THREE.MeshLambertMaterial({ color: 0x8B2500 }));
+    roof.position.y = H + 1.5; roof.rotation.y = Math.PI / 4; roof.castShadow = true;
+    g.add(roof);
+
+    // Interior light
+    const iLight = new THREE.PointLight(0xffdd88, 0.8, 10);
+    iLight.position.set(0, H - 0.5, 0); g.add(iLight);
+
+    g.position.set(x, 0, z); g.rotation.y = rotY;
+    scene.add(g);
+
+    // Wall collision segments (world space)
+    const cos = Math.cos(rotY), sin = Math.sin(rotY);
+    function tw(lx, lz) { return { x: x + lx * cos - lz * sin, z: z + lx * sin + lz * cos }; }
+    const hw = W / 2, dh = doorW / 2;
+
+    // These walls block both player AND zombies
+    houseWalls.push({ a: tw(-hw, -hw), b: tw(hw, -hw) });   // back
+    houseWalls.push({ a: tw(-hw, -hw), b: tw(-hw, hw) });   // left
+    houseWalls.push({ a: tw(hw, -hw), b: tw(hw, hw) });     // right
+    houseWalls.push({ a: tw(-hw, hw), b: tw(-dh, hw) });    // front left
+    houseWalls.push({ a: tw(dh, hw), b: tw(hw, hw) });      // front right
+
+    // Door wall - blocks zombies only (player walks through)
+    houseDoorWalls.push({ a: tw(-dh, hw), b: tw(dh, hw) });
+
+    houses.push({ mesh: g, x, z, hw, rotY, radius: W * 0.7 });
+  }
+
+  // Check if a point is inside any house
+  function isInsideHouse(px, pz) {
+    for (const h of houses) {
+      const cos = Math.cos(-h.rotY), sin = Math.sin(-h.rotY);
+      const dx = px - h.x, dz = pz - h.z;
+      const lx = dx * cos - dz * sin;
+      const lz = dx * sin + dz * cos;
+      if (Math.abs(lx) < h.hw - 0.3 && Math.abs(lz) < h.hw - 0.3) return true;
+    }
+    return false;
+  }
+
+  // ── Zombies ────────────────────────────────────────────────────
+  const zombies = [];
+  const ZOMBIE_RADIUS = 0.5;
+
+  function spawnZombie(x, z) {
+    const g = new THREE.Group();
+    g.add(new THREE.Mesh(new THREE.SphereGeometry(0.5, 12, 10), new THREE.MeshLambertMaterial({ color: 0x881111, emissive: 0x330000 })));
+    g.children[0].position.y = 0.5;
+    const zh = new THREE.Mesh(new THREE.SphereGeometry(0.35, 12, 10), new THREE.MeshLambertMaterial({ color: 0xaa2222, emissive: 0x440000 }));
+    zh.position.y = 1.15; g.add(zh);
+    const em = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    const el = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 8), em); el.position.set(-0.12, 1.22, 0.28); g.add(el);
+    const er = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 8), em); er.position.set(0.12, 1.22, 0.28); g.add(er);
+    const gl = new THREE.PointLight(0xff2200, 1.5, 8); gl.position.y = 1.0; g.add(gl);
+    g.position.set(x, 0, z); scene.add(g);
+    zombies.push({ mesh: g, x, z, alive: true, speed: 1.5 + Math.random() * 1.5, attackCd: 0 });
+  }
+
+  function spawnZombies() {
+    const count = 5 + Math.floor(Math.random() * 5);
+    for (let i = 0; i < count; i++) {
+      const a = Math.random() * Math.PI * 2, d = 20 + Math.random() * 40;
+      spawnZombie(charGroup.position.x + Math.cos(a) * d, charGroup.position.z + Math.sin(a) * d);
+    }
+    showMessage('Zombies are coming!');
+  }
+
+  function despawnAllZombies() {
+    for (const z of zombies) { if (z.alive) scene.remove(z.mesh); }
+    zombies.length = 0;
+  }
+
+  // ── Collision helpers ──────────────────────────────────────────
+  function ptSegDist(px, pz, ax, az, bx, bz) {
+    const abx = bx - ax, abz = bz - az, apx = px - ax, apz = pz - az;
+    let t = (apx * abx + apz * abz) / (abx * abx + abz * abz);
+    t = Math.max(0, Math.min(1, t));
+    const cx = ax + t * abx, cz = az + t * abz;
+    const dx = px - cx, dz = pz - cz;
+    return { dist: Math.sqrt(dx * dx + dz * dz), nx: dx, nz: dz };
+  }
+
+  function circleCollide(x, z, radius, obstacles) {
+    let nx = x, nz = z;
+    for (const o of obstacles) {
+      const dx = nx - o.x, dz = nz - o.z;
+      const dist = Math.hypot(dx, dz), minD = radius + o.radius;
+      if (dist < minD && dist > 0.001) { nx = o.x + (dx / dist) * minD; nz = o.z + (dz / dist) * minD; }
+    }
+    return { x: nx, z: nz };
+  }
+
+  function wallsCollide(x, z, radius, walls) {
+    let nx = x, nz = z;
+    for (const w of walls) {
+      const r = ptSegDist(nx, nz, w.a.x, w.a.z, w.b.x, w.b.z);
+      const minD = radius + 0.15;
+      if (r.dist < minD && r.dist > 0.001) {
+        const push = minD - r.dist;
+        nx += (r.nx / r.dist) * push; nz += (r.nz / r.dist) * push;
+      }
+    }
+    return { x: nx, z: nz };
+  }
+
+  // ── Actions ────────────────────────────────────────────────────
+  let actionCooldown = 0;
+  const SPIN_DURATION = 0.5;
+  let spinTimer = 0, spinType = null, preSpinYaw = 0;
+  const CHAR_RADIUS = 0.45, MOVE_SPEED = 6;
+
+  function tryChopTree() {
+    if (actionCooldown > 0 || dead) return;
+    const px = charGroup.position.x, pz = charGroup.position.z;
+    for (let i = trees.length - 1; i >= 0; i--) {
+      const t = trees[i];
+      if (Math.hypot(px - t.x, pz - t.z) < CHAR_RADIUS + t.radius + 1.5) {
+        actionCooldown = SPIN_DURATION; spinTimer = SPIN_DURATION;
+        spinType = 'chop'; preSpinYaw = charGroup.rotation.y;
+        scene.remove(t.mesh); trees.splice(i, 1);
+        inventory.wood++; updateInventoryUI(); showMessage('+1 Wood'); return;
+      }
+    }
+    showMessage('No tree nearby');
+  }
+
+  function trySwordAttack() {
+    if (actionCooldown > 0 || dead) return;
+    actionCooldown = SPIN_DURATION; spinTimer = SPIN_DURATION;
+    spinType = 'sword'; preSpinYaw = charGroup.rotation.y;
+    const px = charGroup.position.x, pz = charGroup.position.z;
+    let killed = false;
+    for (let i = zombies.length - 1; i >= 0; i--) {
+      const z = zombies[i]; if (!z.alive) continue;
+      if (Math.hypot(px - z.x, pz - z.z) < 2.5) { z.alive = false; scene.remove(z.mesh); inventory.kills++; killed = true; }
+    }
+    if (killed) { updateInventoryUI(); showMessage('Zombie slain!'); }
+  }
+
+  function tryBuildHouse() {
+    if (dead) return;
+    if (inventory.wood < 5) { showMessage('Need 5 wood (have ' + inventory.wood + ')'); return; }
+    const pos = getHousePlacementPos();
+    const hx = pos.x, hz = pos.z;
+    const fa = charGroup.rotation.y;
+    for (const t of trees) { if (Math.hypot(hx - t.x, hz - t.z) < 5) { showMessage('Too close to a tree'); return; } }
+    for (const h of houses) { if (Math.hypot(hx - h.x, hz - h.z) < 10) { showMessage('Too close to another house'); return; } }
+    inventory.wood -= 5; updateInventoryUI();
+    buildHouse(hx, hz, fa); showMessage('House built!');
+  }
+
+  // ── Input (keyboard) ──────────────────────────────────────────
+  const keys = {};
+  window.addEventListener('keydown', e => {
+    if (e.repeat) return; keys[e.code] = true;
+    if (e.code === 'KeyE') tryChopTree();
+    if (e.code === 'KeyF') trySwordAttack();
+    if (e.code === 'KeyB') tryBuildHouse();
+    if (e.code === 'KeyG') toggleFurnMenu();
+    if (e.code === 'Space' && charOnGround && !dead) { charVY = JUMP_FORCE; charOnGround = false; }
+    if (furnMenuOpen && e.code.startsWith('Digit')) {
+      const n = parseInt(e.code.replace('Digit', '')) - 1;
+      if (n >= 0 && n < FURNITURE_DEFS.length) {
+        if (selectedFurnIdx === n) { placeFurniture(n); } // press again to confirm
+        else { setPreview(n); highlightFurnItem(n); }
+      }
+    }
+  });
+  window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+  let yaw = 0, pitch = 0, pointerLocked = false;
+
+  renderer.domElement.addEventListener('click', () => {
+    if (!furnMenuOpen && !isTouchDevice) renderer.domElement.requestPointerLock();
+  });
+  document.addEventListener('pointerlockchange', () => { pointerLocked = document.pointerLockElement === renderer.domElement; });
+  document.addEventListener('mousemove', e => {
+    if (!pointerLocked) return;
+    yaw -= e.movementX * 0.003; pitch -= e.movementY * 0.003;
+    pitch = Math.max(-1.2, Math.min(1.2, pitch));
+  });
+
+  // ── Touch controls ─────────────────────────────────────────────
+  let touchMoveX = 0, touchMoveZ = 0;
+
+  // Joystick
+  const joystickZone = document.getElementById('joystickZone');
+  const joystickKnob = document.getElementById('joystickKnob');
+  let joystickTouchId = null;
+  const jCenter = { x: 70, y: 70 }, jMaxR = 50;
+
+  joystickZone.addEventListener('touchstart', e => {
+    e.preventDefault();
+    const t = e.changedTouches[0]; joystickTouchId = t.identifier;
+  }, { passive: false });
+
+  joystickZone.addEventListener('touchmove', e => {
+    e.preventDefault();
+    for (const t of e.changedTouches) {
+      if (t.identifier !== joystickTouchId) continue;
+      const rect = joystickZone.getBoundingClientRect();
+      let dx = t.clientX - rect.left - jCenter.x;
+      let dy = t.clientY - rect.top - jCenter.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist > jMaxR) { dx = dx / dist * jMaxR; dy = dy / dist * jMaxR; }
+      joystickKnob.style.left = (jCenter.x + dx - 25) + 'px';
+      joystickKnob.style.top = (jCenter.y + dy - 25) + 'px';
+      touchMoveX = dx / jMaxR; touchMoveZ = -dy / jMaxR;
+    }
+  }, { passive: false });
+
+  function resetJoystick() {
+    joystickTouchId = null; touchMoveX = 0; touchMoveZ = 0;
+    joystickKnob.style.left = '45px'; joystickKnob.style.top = '45px';
+  }
+  joystickZone.addEventListener('touchend', e => {
+    for (const t of e.changedTouches) { if (t.identifier === joystickTouchId) resetJoystick(); }
+  });
+  joystickZone.addEventListener('touchcancel', resetJoystick);
+
+  // Look zone (right side of screen for camera rotation)
+  const lookZone = document.getElementById('lookZone');
+  let lookTouchId = null, lastLookX = 0, lastLookY = 0;
+
+  lookZone.addEventListener('touchstart', e => {
+    e.preventDefault();
+    const t = e.changedTouches[0]; lookTouchId = t.identifier;
+    lastLookX = t.clientX; lastLookY = t.clientY;
+  }, { passive: false });
+
+  lookZone.addEventListener('touchmove', e => {
+    e.preventDefault();
+    for (const t of e.changedTouches) {
+      if (t.identifier !== lookTouchId) continue;
+      yaw -= (t.clientX - lastLookX) * 0.005;
+      pitch -= (t.clientY - lastLookY) * 0.005;
+      pitch = Math.max(-1.2, Math.min(1.2, pitch));
+      lastLookX = t.clientX; lastLookY = t.clientY;
+    }
+  }, { passive: false });
+
+  lookZone.addEventListener('touchend', e => {
+    for (const t of e.changedTouches) { if (t.identifier === lookTouchId) lookTouchId = null; }
+  });
+
+  // Action buttons
+  function touchBtn(id, fn) {
+    const el = document.getElementById(id);
+    el.addEventListener('touchstart', e => { e.preventDefault(); fn(); }, { passive: false });
+  }
+  touchBtn('btnJump', () => { if (charOnGround && !dead) { charVY = JUMP_FORCE; charOnGround = false; } });
+  touchBtn('btnChop', tryChopTree);
+  touchBtn('btnSword', trySwordAttack);
+  touchBtn('btnBuild', tryBuildHouse);
+  touchBtn('btnFurn', toggleFurnMenu);
+
+  // ── Game loop ────────────────────────────────────────────────
+  let prevTime = performance.now();
+  let insideHouse = false;
+
+  function update() {
+    const now = performance.now();
+    const dt = Math.min((now - prevTime) / 1000, 0.05);
+    prevTime = now;
+
+    updateDayNight(dt);
+    if (damageCooldown > 0) damageCooldown -= dt;
+
+    if (dead) { renderer.render(scene, camera); requestAnimationFrame(update); return; }
+
+    // Jumping / gravity
+    charVY += GRAVITY * dt;
+    charGroup.position.y += charVY * dt;
+    if (charGroup.position.y <= 0) { charGroup.position.y = 0; charVY = 0; charOnGround = true; }
+
+    // Movement
+    let moveX = 0, moveZ = 0;
+    if (spinTimer <= 0) {
+      // Keyboard
+      if (keys['KeyW'] || keys['ArrowUp'])    { moveX += Math.sin(yaw); moveZ += Math.cos(yaw); }
+      if (keys['KeyS'] || keys['ArrowDown'])  { moveX -= Math.sin(yaw); moveZ -= Math.cos(yaw); }
+      if (keys['KeyA'] || keys['ArrowLeft'])  { moveX += Math.sin(yaw + Math.PI / 2); moveZ += Math.cos(yaw + Math.PI / 2); }
+      if (keys['KeyD'] || keys['ArrowRight']) { moveX -= Math.sin(yaw + Math.PI / 2); moveZ -= Math.cos(yaw + Math.PI / 2); }
+      // Touch joystick
+      if (Math.abs(touchMoveX) > 0.1 || Math.abs(touchMoveZ) > 0.1) {
+        moveX += Math.sin(yaw) * touchMoveZ + Math.sin(yaw + Math.PI / 2) * -touchMoveX;
+        moveZ += Math.cos(yaw) * touchMoveZ + Math.cos(yaw + Math.PI / 2) * -touchMoveX;
+      }
+    }
+
+    const len = Math.hypot(moveX, moveZ);
+    if (len > 0) {
+      moveX /= len; moveZ /= len;
+      let newX = charGroup.position.x + moveX * MOVE_SPEED * dt;
+      let newZ = charGroup.position.z + moveZ * MOVE_SPEED * dt;
+      const c1 = circleCollide(newX, newZ, CHAR_RADIUS, [...trees, ...furnitureItems]);
+      const c2 = wallsCollide(c1.x, c1.z, CHAR_RADIUS, houseWalls);
+      charGroup.position.x = c2.x; charGroup.position.z = c2.z;
+      charGroup.rotation.y = Math.atan2(moveX, moveZ);
+      body.position.y = 0.5 + Math.sin(now * 0.01) * 0.05;
+      head.position.y = 1.2 + Math.sin(now * 0.01 + 1) * 0.04;
+    }
+
+    // Spin attack animation
+    if (spinTimer > 0) {
+      spinTimer -= dt;
+      const p = 1.0 - (spinTimer / SPIN_DURATION);
+      charGroup.rotation.y = preSpinYaw + p * Math.PI * 2;
+      if (spinType === 'chop') {
+        axeGroup.position.x = 0.55 + Math.sin(p * Math.PI) * 0.4;
+        axeGroup.rotation.x = Math.sin(p * Math.PI) * -0.8;
+      } else if (spinType === 'sword') {
+        swordGroup.position.x = -0.55 - Math.sin(p * Math.PI) * 0.4;
+        swordGroup.rotation.x = Math.sin(p * Math.PI) * -0.8;
+      }
+      if (spinTimer <= 0) {
+        charGroup.rotation.y = preSpinYaw;
+        axeGroup.position.set(0.55, 0.7, 0.2); axeGroup.rotation.set(0, 0, -0.3);
+        swordGroup.position.set(-0.55, 0.7, 0.2); swordGroup.rotation.set(0, 0, 0.3);
+        spinType = null;
+      }
+    }
+    if (actionCooldown > 0) actionCooldown -= dt;
+
+    // Coin pickup
+    for (let i = coins.length - 1; i >= 0; i--) {
+      const c = coins[i]; if (c.collected) continue;
+      c.mesh.rotation.y += dt * 3;
+      c.mesh.position.y = 0.3 + Math.sin(now * 0.003 + i) * 0.1;
+      if (Math.hypot(charGroup.position.x - c.x, charGroup.position.z - c.z) < 1.0) {
+        c.collected = true; scene.remove(c.mesh);
+        inventory.coins++; updateInventoryUI(); showMessage('+1 Coin');
+      }
+    }
+
+    // Zombie AI — collide with walls AND door walls
+    const zombieObstacles = [...trees, ...furnitureItems];
+    const zombieAllWalls = [...houseWalls, ...houseDoorWalls];
+    for (const z of zombies) {
+      if (!z.alive) continue;
+      const dx = charGroup.position.x - z.x, dz = charGroup.position.z - z.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist > 1.0) {
+        let nx = z.x + (dx / dist) * z.speed * dt;
+        let nz = z.z + (dz / dist) * z.speed * dt;
+        const zc = circleCollide(nx, nz, ZOMBIE_RADIUS, zombieObstacles);
+        const zw = wallsCollide(zc.x, zc.z, ZOMBIE_RADIUS, zombieAllWalls);
+        z.x = zw.x; z.z = zw.z;
+        z.mesh.position.x = z.x; z.mesh.position.z = z.z;
+        z.mesh.rotation.y = Math.atan2(dx, dz);
+      }
+      if (dist < 1.5) { if (z.attackCd <= 0) { takeDamage(10); z.attackCd = 1.0; } }
+      if (z.attackCd > 0) z.attackCd -= dt;
+      z.mesh.children[0].position.y = 0.5 + Math.sin(now * 0.008 + z.x) * 0.1;
+      z.mesh.children[1].position.y = 1.15 + Math.sin(now * 0.008 + z.z) * 0.08;
+    }
+
+    // Bounds
+    charGroup.position.x = Math.max(-140, Math.min(140, charGroup.position.x));
+    charGroup.position.z = Math.max(-140, Math.min(140, charGroup.position.z));
+
+    // Update placement preview
+    if (furnMenuOpen) updatePreview();
+
+    // ── Camera: first-person inside house, third-person outside ──
+    insideHouse = isInsideHouse(charGroup.position.x, charGroup.position.z);
+
+    if (insideHouse) {
+      // First person — at eye level
+      charGroup.visible = false;
+      camera.position.set(
+        charGroup.position.x,
+        charGroup.position.y + 1.5,
+        charGroup.position.z
+      );
+      const lookDist = 10;
+      camera.lookAt(
+        charGroup.position.x + Math.sin(yaw) * lookDist,
+        charGroup.position.y + 1.5 + pitch * 3,
+        charGroup.position.z + Math.cos(yaw) * lookDist
+      );
+    } else {
+      // Third person
+      charGroup.visible = true;
+      const camDist = 5, camHeight = 3;
+      camera.position.x = charGroup.position.x - Math.sin(yaw) * camDist;
+      camera.position.z = charGroup.position.z - Math.cos(yaw) * camDist;
+      camera.position.y = charGroup.position.y + camHeight + pitch * -1.5;
+      camera.lookAt(
+        charGroup.position.x + Math.sin(yaw) * 2,
+        charGroup.position.y + 1 + pitch * 2,
+        charGroup.position.z + Math.cos(yaw) * 2
+      );
+    }
+
+    renderer.render(scene, camera);
+
+    // Auto-save every 5 seconds
+    if (now - lastSaveTime > 5000) { saveGame(); lastSaveTime = now; }
+
+    requestAnimationFrame(update);
+  }
+
+  // ── Save / Load ──────────────────────────────────────────────
+  const SAVE_KEY = 'embrik_save';
+  let lastSaveTime = 0;
+
+  function saveGame() {
+    const data = {
+      version: 4,
+      player: { x: charGroup.position.x, z: charGroup.position.z, yaw },
+      inventory: { ...inventory },
+      health,
+      gameTime,
+      // Track which coins were collected by index
+      collectedCoins: coins.map(c => c.collected),
+      // Track which original trees remain (by their position)
+      remainingTrees: trees.map(t => ({ x: t.x, z: t.z })),
+      // Placed houses
+      savedHouses: houses.map(h => ({ x: h.x, z: h.z, rotY: h.rotY })),
+      // Placed furniture (type + position)
+      savedFurniture: furnitureItems.map(f => ({ x: f.x, z: f.z, rotY: f.mesh.rotation.y, typeIdx: f.typeIdx || 0 })),
+    };
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch(e) {}
+  }
+
+  function loadGame() {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (!raw) return false;
+      const data = JSON.parse(raw);
+      if (!data || data.version !== 4) return false;
+
+      // Restore player
+      charGroup.position.set(data.player.x, 0, data.player.z);
+      yaw = data.player.yaw || 0;
+
+      // Restore inventory & health
+      inventory.coins = data.inventory.coins;
+      inventory.wood = data.inventory.wood;
+      inventory.kills = data.inventory.kills;
+      health = data.health;
+      updateInventoryUI(); updateHealthUI();
+
+      gameTime = data.gameTime || 0;
+
+      // Restore collected coins
+      if (data.collectedCoins) {
+        data.collectedCoins.forEach((collected, i) => {
+          if (collected && coins[i] && !coins[i].collected) {
+            coins[i].collected = true;
+            scene.remove(coins[i].mesh);
+          }
+        });
+      }
+
+      // Remove trees that were chopped (compare current trees with saved remaining)
+      if (data.remainingTrees) {
+        const remaining = new Set(data.remainingTrees.map(t => t.x.toFixed(2) + ',' + t.z.toFixed(2)));
+        for (let i = trees.length - 1; i >= 0; i--) {
+          const key = trees[i].x.toFixed(2) + ',' + trees[i].z.toFixed(2);
+          if (!remaining.has(key)) {
+            scene.remove(trees[i].mesh);
+            trees.splice(i, 1);
+          }
+        }
+      }
+
+      // Restore houses
+      if (data.savedHouses) {
+        data.savedHouses.forEach(h => buildHouse(h.x, h.z, h.rotY));
+      }
+
+      // Restore furniture
+      if (data.savedFurniture) {
+        data.savedFurniture.forEach(f => {
+          const typeIdx = f.typeIdx || 0;
+          const def = FURNITURE_DEFS[typeIdx];
+          if (!def) return;
+          const result = def.build();
+          result.group.position.set(f.x, 0, f.z);
+          result.group.rotation.y = f.rotY || 0;
+          scene.add(result.group);
+          furnitureItems.push({ mesh: result.group, x: f.x, z: f.z, radius: result.radius, typeIdx });
+        });
+      }
+
+      showMessage('Game loaded!');
+      return true;
+    } catch(e) { return false; }
+  }
+
+  // Save on page unload
+  window.addEventListener('beforeunload', saveGame);
+
+  // Load saved game on start
+  loadGame();
+
+  update();
+  </script>
+</body>
+</html>
