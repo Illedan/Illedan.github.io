@@ -95,9 +95,22 @@
         width: 100%;
         height: 100%;
         display: block;
+        cursor: grab;
         background:
           radial-gradient(circle, #e4e4ea 1px, transparent 1px) 0 0 / 20px 20px,
           #f5f5f7;
+      }
+      svg.panning { cursor: grabbing; }
+      .arrow-text {
+        font: 13px -apple-system, system-ui, sans-serif;
+        text-anchor: middle;
+        dominant-baseline: middle;
+        fill: #222;
+        paint-order: stroke;
+        stroke: #f5f5f7;
+        stroke-width: 4px;
+        pointer-events: none;
+        user-select: none;
       }
       .box-rect {
         stroke: #333;
@@ -207,9 +220,11 @@
         />
       </div>
       <div class="hint">
-        Double-click to edit text.<br />
+        Drag swatches onto canvas.<br />
+        Double-click shape or arrow to edit text.<br />
         Drag edges of a shape to draw an arrow.<br />
         Drag corner handle to resize.<br />
+        Drag empty canvas or scroll to pan.<br />
         Cmd/Ctrl+Z to undo.
       </div>
     </div>
@@ -253,13 +268,15 @@
         { name: "Light Blue", color: "#cfe8ff" },
         { name: "Light Yellow", color: "#fff4c2" },
         { name: "Light Green", color: "#d4f0c8" },
+        { name: "Light Red", color: "#ffcfcf" },
+        { name: "Light Orange", color: "#ffd8b1" },
       ];
 
       const defaultState = () => {
         const vid = "v" + Date.now();
         return {
           currentViewId: vid,
-          views: { [vid]: { name: "Untitled", boxes: [], arrows: [] } },
+          views: { [vid]: { name: "Untitled", boxes: [], arrows: [], pan: { x: 0, y: 0 } } },
         };
       };
 
@@ -268,7 +285,12 @@
       let nextId = 1;
       let undoStack = [];
       const UNDO_LIMIT = 100;
-      let lastClick = { id: null, time: 0 };
+      let lastClick = { key: null, time: 0 };
+
+      function ensurePan(v) {
+        if (!v.pan) v.pan = { x: 0, y: 0 };
+        return v.pan;
+      }
 
       function pushUndo() {
         undoStack.push(JSON.stringify(state));
@@ -353,9 +375,18 @@
       const arrowsLayer = document.getElementById("arrows-layer");
       const overlayLayer = document.getElementById("overlay-layer");
 
+      function applyPan() {
+        const pan = ensurePan(currentView());
+        const t = `translate(${pan.x} ${pan.y})`;
+        boxesLayer.setAttribute("transform", t);
+        arrowsLayer.setAttribute("transform", t);
+        overlayLayer.setAttribute("transform", t);
+      }
+
       function render() {
         boxesLayer.innerHTML = "";
         arrowsLayer.innerHTML = "";
+        applyPan();
 
         const view = currentView();
 
@@ -388,9 +419,30 @@
           );
           g.appendChild(hit);
           g.appendChild(line);
+          if (a.text) {
+            const txt = document.createElementNS(SVG_NS, "text");
+            txt.setAttribute("class", "arrow-text");
+            txt.setAttribute("x", (p1.x + p2.x) / 2);
+            txt.setAttribute("y", (p1.y + p2.y) / 2);
+            txt.textContent = a.text;
+            g.appendChild(txt);
+          }
+          const midP1 = { x: p1.x, y: p1.y };
+          const midP2 = { x: p2.x, y: p2.y };
           g.addEventListener("mousedown", (e) => {
             e.stopPropagation();
+            e.preventDefault();
+            if (editInput.style.display === "block") editInput.blur();
             selection = { type: "arrow", id: a.id };
+            const now = Date.now();
+            const key = "arrow:" + a.id;
+            if (lastClick.key === key && now - lastClick.time < 400) {
+              lastClick = { key: null, time: 0 };
+              render();
+              setTimeout(() => editArrowText(a, midP1, midP2), 0);
+              return;
+            }
+            lastClick = { key, time: now };
             render();
           });
           arrowsLayer.appendChild(g);
@@ -470,14 +522,15 @@
             e.preventDefault();
             if (editInput.style.display === "block") editInput.blur();
             const now = Date.now();
-            if (lastClick.id === b.id && now - lastClick.time < 400) {
-              lastClick = { id: null, time: 0 };
+            const key = "box:" + b.id;
+            if (lastClick.key === key && now - lastClick.time < 400) {
+              lastClick = { key: null, time: 0 };
               selection = { type: "box", id: b.id };
               render();
               setTimeout(() => editText(b), 0);
               return;
             }
-            lastClick = { id: b.id, time: now };
+            lastClick = { key, time: now };
             selection = { type: "box", id: b.id };
             document.getElementById("color-picker").value =
               b.color || "#cfe8ff";
@@ -492,7 +545,11 @@
       // --- interactions -----------------------------------------------------------
       function svgPoint(evt) {
         const r = svg.getBoundingClientRect();
-        return { x: evt.clientX - r.left, y: evt.clientY - r.top };
+        const pan = ensurePan(currentView());
+        return {
+          x: evt.clientX - r.left - pan.x,
+          y: evt.clientY - r.top - pan.y,
+        };
       }
 
       function startDrag(evt, b) {
@@ -601,9 +658,11 @@
           .getElementById("canvas-wrap")
           .getBoundingClientRect();
         const svgR = svg.getBoundingClientRect();
+        const pan = ensurePan(currentView());
         editInput.style.display = "block";
-        editInput.style.left = svgR.left - wrap.left + b.x + "px";
-        editInput.style.top = svgR.top - wrap.top + b.y + b.h / 2 - 14 + "px";
+        editInput.style.left = svgR.left - wrap.left + b.x + pan.x + "px";
+        editInput.style.top =
+          svgR.top - wrap.top + b.y + pan.y + b.h / 2 - 14 + "px";
         editInput.style.width = b.w + "px";
         editInput.value = b.text || "";
         editInput.focus();
@@ -636,12 +695,89 @@
         editInput.addEventListener("keydown", key);
       }
 
-      svg.addEventListener("mousedown", (e) => {
-        if (e.target === svg || e.target.tagName === "svg") {
-          selection = null;
+      function editArrowText(a, p1, p2) {
+        const wrap = document
+          .getElementById("canvas-wrap")
+          .getBoundingClientRect();
+        const svgR = svg.getBoundingClientRect();
+        const pan = ensurePan(currentView());
+        const W = 140;
+        const midX = (p1.x + p2.x) / 2;
+        const midY = (p1.y + p2.y) / 2;
+        editInput.style.display = "block";
+        editInput.style.left =
+          svgR.left - wrap.left + midX + pan.x - W / 2 + "px";
+        editInput.style.top = svgR.top - wrap.top + midY + pan.y - 14 + "px";
+        editInput.style.width = W + "px";
+        editInput.value = a.text || "";
+        editInput.focus();
+        editInput.select();
+        const originalText = a.text || "";
+        const snapshot = JSON.stringify(state);
+        function commit() {
+          if (editInput.value !== originalText) {
+            undoStack.push(snapshot);
+            if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+          }
+          a.text = editInput.value;
+          editInput.style.display = "none";
+          editInput.removeEventListener("blur", commit);
+          editInput.removeEventListener("keydown", key);
+          saveState();
           render();
         }
+        function key(e) {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            commit();
+          } else if (e.key === "Escape") {
+            editInput.style.display = "none";
+            editInput.removeEventListener("blur", commit);
+            editInput.removeEventListener("keydown", key);
+          }
+        }
+        editInput.addEventListener("blur", commit);
+        editInput.addEventListener("keydown", key);
+      }
+
+      // empty-canvas: deselect + pan drag
+      svg.addEventListener("mousedown", (e) => {
+        if (e.target !== svg && e.target.tagName !== "svg") return;
+        if (editInput.style.display === "block") editInput.blur();
+        selection = null;
+        render();
+        const pan = ensurePan(currentView());
+        const start = { x: e.clientX, y: e.clientY };
+        const origin = { x: pan.x, y: pan.y };
+        svg.classList.add("panning");
+        function move(ev) {
+          pan.x = origin.x + (ev.clientX - start.x);
+          pan.y = origin.y + (ev.clientY - start.y);
+          applyPan();
+        }
+        function up() {
+          window.removeEventListener("mousemove", move);
+          window.removeEventListener("mouseup", up);
+          svg.classList.remove("panning");
+          saveState();
+        }
+        window.addEventListener("mousemove", move);
+        window.addEventListener("mouseup", up);
       });
+
+      // two-finger / wheel pan
+      svg.addEventListener(
+        "wheel",
+        (e) => {
+          e.preventDefault();
+          const pan = ensurePan(currentView());
+          pan.x -= e.deltaX;
+          pan.y -= e.deltaY;
+          applyPan();
+          saveState();
+        },
+        { passive: false },
+      );
 
       document.addEventListener("keydown", (e) => {
         if (document.activeElement === editInput) return;
@@ -673,15 +809,19 @@
       }
 
       // --- toolbar ----------------------------------------------------------------
-      function addShape(shape, color) {
+      function shapeSize(shape) {
+        return shape === "circle" ? { w: 110, h: 110 } : { w: 140, h: 70 };
+      }
+      function addShape(shape, color, x, y) {
         pushUndo();
+        const size = shapeSize(shape);
         const b = {
           id: genId(shape === "circle" ? "c" : "b"),
           shape,
-          x: 140 + Math.round(Math.random() * 80),
-          y: 120 + Math.round(Math.random() * 80),
-          w: shape === "circle" ? 110 : 140,
-          h: shape === "circle" ? 110 : 70,
+          x: x != null ? x : 140 + Math.round(Math.random() * 80),
+          y: y != null ? y : 120 + Math.round(Math.random() * 80),
+          w: size.w,
+          h: size.h,
           text: shape === "circle" ? "New circle" : "New box",
           color,
         };
@@ -692,6 +832,58 @@
         render();
       }
 
+      function makeSwatchDraggable(btn, shape, color) {
+        btn.addEventListener("mousedown", (e) => {
+          e.preventDefault();
+          const size = shapeSize(shape);
+          const ghost = document.createElement("div");
+          ghost.style.cssText = `
+            position: fixed; pointer-events: none; z-index: 9999;
+            width: ${size.w}px; height: ${size.h}px;
+            background: ${color};
+            border: 1.5px solid #333;
+            border-radius: ${shape === "circle" ? "50%" : "6px"};
+            opacity: 0.75;
+          `;
+          document.body.appendChild(ghost);
+          let moved = false;
+          function position(ev) {
+            ghost.style.left = ev.clientX - size.w / 2 + "px";
+            ghost.style.top = ev.clientY - size.h / 2 + "px";
+          }
+          position(e);
+          function move(ev) {
+            moved = true;
+            position(ev);
+          }
+          function up(ev) {
+            window.removeEventListener("mousemove", move);
+            window.removeEventListener("mouseup", up);
+            ghost.remove();
+            const r = svg.getBoundingClientRect();
+            const overCanvas =
+              ev.clientX >= r.left &&
+              ev.clientX <= r.right &&
+              ev.clientY >= r.top &&
+              ev.clientY <= r.bottom;
+            if (!moved) {
+              addShape(shape, color);
+            } else if (overCanvas) {
+              const pan = ensurePan(currentView());
+              const x = Math.round(
+                ev.clientX - r.left - pan.x - size.w / 2,
+              );
+              const y = Math.round(
+                ev.clientY - r.top - pan.y - size.h / 2,
+              );
+              addShape(shape, color, x, y);
+            }
+          }
+          window.addEventListener("mousemove", move);
+          window.addEventListener("mouseup", up);
+        });
+      }
+
       function buildSwatches(containerId, shape) {
         const container = document.getElementById(containerId);
         container.innerHTML = "";
@@ -699,8 +891,8 @@
           const btn = document.createElement("button");
           btn.className = "swatch" + (shape === "circle" ? " circle" : "");
           btn.style.background = sw.color;
-          btn.title = `Add ${shape} (${sw.name})`;
-          btn.addEventListener("click", () => addShape(shape, sw.color));
+          btn.title = `Drag to canvas or click to add ${shape} (${sw.name})`;
+          makeSwatchDraggable(btn, shape, sw.color);
           container.appendChild(btn);
         }
       }
