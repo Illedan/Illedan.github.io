@@ -286,6 +286,11 @@
       let undoStack = [];
       const UNDO_LIMIT = 100;
       let lastClick = { key: null, time: 0 };
+      const SNAP = 4;
+      let lastSize = {
+        box: { w: 140, h: 70 },
+        circle: { w: 110, h: 110 },
+      };
 
       function ensurePan(v) {
         if (!v.pan) v.pan = { x: 0, y: 0 };
@@ -399,6 +404,7 @@
           const p1 = shapeEdgePoint(from, tc.x, tc.y);
           const p2 = shapeEdgePoint(to, fc.x, fc.y);
           const g = document.createElementNS(SVG_NS, "g");
+          g.setAttribute("class", "arrow-group");
           const hit = document.createElementNS(SVG_NS, "line");
           hit.setAttribute("class", "arrow-hit");
           hit.setAttribute("x1", p1.x);
@@ -485,15 +491,17 @@
           text.textContent = b.text || "";
           g.appendChild(text);
 
-          // resize handle (bottom-right corner)
-          const h = document.createElementNS(SVG_NS, "rect");
-          h.setAttribute("class", "handle");
-          h.setAttribute("x", b.x + b.w - 5);
-          h.setAttribute("y", b.y + b.h - 5);
-          h.setAttribute("width", 10);
-          h.setAttribute("height", 10);
-          h.addEventListener("mousedown", (e) => startResize(e, b));
-          g.appendChild(h);
+          // resize handle (bottom-right corner) — only when selected
+          if (isSel) {
+            const h = document.createElementNS(SVG_NS, "rect");
+            h.setAttribute("class", "handle");
+            h.setAttribute("x", b.x + b.w - 5);
+            h.setAttribute("y", b.y + b.h - 5);
+            h.setAttribute("width", 10);
+            h.setAttribute("height", 10);
+            h.addEventListener("mousedown", (e) => startResize(e, b));
+            g.appendChild(h);
+          }
 
           // edge anchor points for starting arrows
           const anchors = [
@@ -532,6 +540,10 @@
             }
             lastClick = { key, time: now };
             selection = { type: "box", id: b.id };
+            lastSize[b.shape === "circle" ? "circle" : "box"] = {
+              w: b.w,
+              h: b.h,
+            };
             document.getElementById("color-picker").value =
               b.color || "#cfe8ff";
             startDrag(e, b);
@@ -589,13 +601,23 @@
           oh = b.h;
         function move(e) {
           const p = svgPoint(e);
-          b.w = Math.max(40, Math.round(ow + (p.x - start.x)));
-          b.h = Math.max(30, Math.round(oh + (p.y - start.y)));
+          b.w = Math.max(
+            40,
+            Math.round((ow + (p.x - start.x)) / SNAP) * SNAP,
+          );
+          b.h = Math.max(
+            32,
+            Math.round((oh + (p.y - start.y)) / SNAP) * SNAP,
+          );
           render();
         }
         function up() {
           window.removeEventListener("mousemove", move);
           window.removeEventListener("mouseup", up);
+          lastSize[b.shape === "circle" ? "circle" : "box"] = {
+            w: b.w,
+            h: b.h,
+          };
           saveState();
         }
         window.addEventListener("mousemove", move);
@@ -742,7 +764,8 @@
 
       // empty-canvas: deselect + pan drag
       svg.addEventListener("mousedown", (e) => {
-        if (e.target !== svg && e.target.tagName !== "svg") return;
+        if (e.target.closest(".box-group, .arrow-group, .handle, .anchor"))
+          return;
         if (editInput.style.display === "block") editInput.blur();
         selection = null;
         render();
@@ -763,6 +786,21 @@
         }
         window.addEventListener("mousemove", move);
         window.addEventListener("mouseup", up);
+      });
+
+      // click outside the canvas clears selection
+      document.addEventListener("mousedown", (e) => {
+        if (
+          e.target.closest(
+            ".box-group, .arrow-group, .handle, .anchor, #sidebar",
+          )
+        )
+          return;
+        if (e.target.closest("#canvas-wrap")) return;
+        if (selection) {
+          selection = null;
+          render();
+        }
       });
 
       // two-finger / wheel pan
@@ -810,7 +848,8 @@
 
       // --- toolbar ----------------------------------------------------------------
       function shapeSize(shape) {
-        return shape === "circle" ? { w: 110, h: 110 } : { w: 140, h: 70 };
+        const s = lastSize[shape] || { w: 140, h: 70 };
+        return { w: s.w, h: s.h };
       }
       function addShape(shape, color, x, y) {
         pushUndo();
@@ -820,8 +859,8 @@
           shape,
           x: x != null ? x : 140 + Math.round(Math.random() * 80),
           y: y != null ? y : 120 + Math.round(Math.random() * 80),
-          w: size.w,
-          h: size.h,
+          w: Math.round(size.w / SNAP) * SNAP,
+          h: Math.round(size.h / SNAP) * SNAP,
           text: shape === "circle" ? "New circle" : "New box",
           color,
         };
