@@ -225,6 +225,7 @@
         Drag edges of a shape to draw an arrow.<br />
         Drag corner handle to resize.<br />
         Drag empty canvas or scroll to pan.<br />
+        Right-drag to marquee-select multiple.<br />
         Cmd/Ctrl+Z to undo.
       </div>
     </div>
@@ -292,6 +293,7 @@
         circle: { w: 110, h: 110 },
       };
       let clipboard = null;
+      let multiSelection = new Set();
 
       function ensurePan(v) {
         if (!v.pan) v.pan = { x: 0, y: 0 };
@@ -460,8 +462,10 @@
           g.setAttribute("class", "box-group");
           g.dataset.id = b.id;
 
+          const inMulti = multiSelection.has(b.id);
           const isSel =
-            selection && selection.type === "box" && selection.id === b.id;
+            (selection && selection.type === "box" && selection.id === b.id) ||
+            inMulti;
           let shapeEl;
           if (b.shape === "circle") {
             shapeEl = document.createElementNS(SVG_NS, "ellipse");
@@ -530,6 +534,11 @@
             e.stopPropagation();
             e.preventDefault();
             if (editInput.style.display === "block") editInput.blur();
+            if (multiSelection.has(b.id) && e.button === 0) {
+              startMultiDrag(e);
+              return;
+            }
+            if (e.button !== 2) multiSelection.clear();
             const now = Date.now();
             const key = "box:" + b.id;
             if (lastClick.key === key && now - lastClick.time < 400) {
@@ -588,6 +597,91 @@
           window.removeEventListener("mousemove", move);
           window.removeEventListener("mouseup", up);
           if (moved) saveState();
+        }
+        window.addEventListener("mousemove", move);
+        window.addEventListener("mouseup", up);
+      }
+
+      function startMultiDrag(evt) {
+        const start = svgPoint(evt);
+        const targets = currentView().boxes.filter((b) =>
+          multiSelection.has(b.id),
+        );
+        const origins = targets.map((b) => ({ b, ox: b.x, oy: b.y }));
+        let moved = false;
+        const snapshot = JSON.stringify(state);
+        function move(e) {
+          const p = svgPoint(e);
+          const dx = Math.round(p.x - start.x);
+          const dy = Math.round(p.y - start.y);
+          if (!moved && (dx !== 0 || dy !== 0)) {
+            undoStack.push(snapshot);
+            if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+            moved = true;
+          }
+          for (const o of origins) {
+            o.b.x = o.ox + dx;
+            o.b.y = o.oy + dy;
+          }
+          render();
+        }
+        function up() {
+          window.removeEventListener("mousemove", move);
+          window.removeEventListener("mouseup", up);
+          if (moved) saveState();
+        }
+        window.addEventListener("mousemove", move);
+        window.addEventListener("mouseup", up);
+      }
+
+      function startMarquee(evt) {
+        const start = svgPoint(evt);
+        const rect = document.createElementNS(SVG_NS, "rect");
+        rect.setAttribute("fill", "rgba(10, 132, 255, 0.12)");
+        rect.setAttribute("stroke", "#0a84ff");
+        rect.setAttribute("stroke-width", "1");
+        rect.setAttribute("stroke-dasharray", "4 3");
+        overlayLayer.appendChild(rect);
+        function update(p) {
+          const x = Math.min(start.x, p.x);
+          const y = Math.min(start.y, p.y);
+          rect.setAttribute("x", x);
+          rect.setAttribute("y", y);
+          rect.setAttribute("width", Math.abs(p.x - start.x));
+          rect.setAttribute("height", Math.abs(p.y - start.y));
+        }
+        update(start);
+        function move(e) {
+          update(svgPoint(e));
+        }
+        function up(e) {
+          window.removeEventListener("mousemove", move);
+          window.removeEventListener("mouseup", up);
+          const end = svgPoint(e);
+          overlayLayer.removeChild(rect);
+          const minX = Math.min(start.x, end.x);
+          const maxX = Math.max(start.x, end.x);
+          const minY = Math.min(start.y, end.y);
+          const maxY = Math.max(start.y, end.y);
+          multiSelection.clear();
+          for (const b of currentView().boxes) {
+            if (
+              b.x + b.w >= minX &&
+              b.x <= maxX &&
+              b.y + b.h >= minY &&
+              b.y <= maxY
+            ) {
+              multiSelection.add(b.id);
+            }
+          }
+          if (multiSelection.size === 1) {
+            const only = [...multiSelection][0];
+            selection = { type: "box", id: only };
+            multiSelection.clear();
+          } else if (multiSelection.size > 0) {
+            selection = null;
+          }
+          render();
         }
         window.addEventListener("mousemove", move);
         window.addEventListener("mouseup", up);
@@ -763,12 +857,21 @@
         editInput.addEventListener("keydown", key);
       }
 
-      // empty-canvas: deselect + pan drag
+      svg.addEventListener("contextmenu", (e) => e.preventDefault());
+
+      // empty-canvas: right-drag marquee, left-drag pan + deselect
       svg.addEventListener("mousedown", (e) => {
         if (e.target.closest(".box-group, .arrow-group, .handle, .anchor"))
           return;
         if (editInput.style.display === "block") editInput.blur();
+        if (e.button === 2) {
+          selection = null;
+          render();
+          startMarquee(e);
+          return;
+        }
         selection = null;
+        multiSelection.clear();
         render();
         const pan = ensurePan(currentView());
         const start = { x: e.clientX, y: e.clientY };
@@ -868,16 +971,25 @@
           }
           return;
         }
-        if ((e.key === "Delete" || e.key === "Backspace") && selection) {
+        if (
+          (e.key === "Delete" || e.key === "Backspace") &&
+          (selection || multiSelection.size > 0)
+        ) {
           deleteSelection();
         }
       });
 
       function deleteSelection() {
-        if (!selection) return;
+        if (!selection && multiSelection.size === 0) return;
         pushUndo();
         const v = currentView();
-        if (selection.type === "box") {
+        if (multiSelection.size > 0) {
+          v.boxes = v.boxes.filter((b) => !multiSelection.has(b.id));
+          v.arrows = v.arrows.filter(
+            (a) => !multiSelection.has(a.from) && !multiSelection.has(a.to),
+          );
+          multiSelection.clear();
+        } else if (selection.type === "box") {
           v.boxes = v.boxes.filter((b) => b.id !== selection.id);
           v.arrows = v.arrows.filter(
             (a) => a.from !== selection.id && a.to !== selection.id,
