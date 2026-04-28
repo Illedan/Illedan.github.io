@@ -173,24 +173,95 @@ async function main() {
   startMesh.position.set(px2x(path[0].x_px), 0.06, px2z(path[0].y_px));
   scene.add(startMesh);
 
-  // Kart
+  // Go-kart model
   const kart = new THREE.Group();
-  const chassis = new THREE.Mesh(
-    new THREE.BoxGeometry(meta.cart_width_m, 0.25, meta.cart_length_m),
-    new THREE.MeshStandardMaterial({ color: 0xff3b3b, metalness: 0.25, roughness: 0.45 })
-  );
-  chassis.position.y = 0.18; kart.add(chassis);
-  const cabin = new THREE.Mesh(
-    new THREE.BoxGeometry(meta.cart_width_m * 0.6, 0.4, meta.cart_length_m * 0.45),
-    new THREE.MeshStandardMaterial({ color: 0xeeeeee, metalness: 0.1, roughness: 0.6 })
-  );
-  cabin.position.set(0, 0.42, -meta.cart_length_m * 0.05); kart.add(cabin);
-  const nose = new THREE.Mesh(
-    new THREE.ConeGeometry(meta.cart_width_m * 0.3, 0.4, 4),
-    new THREE.MeshStandardMaterial({ color: 0xffaa22 })
-  );
-  nose.rotation.x = Math.PI / 2;
-  nose.position.set(0, 0.25, meta.cart_length_m * 0.55); kart.add(nose);
+  const kartWheels = [];
+
+  const CW  = meta.cart_width_m;
+  const CL  = meta.cart_length_m;
+  const WR  = 0.25;   // wheel radius (m)
+  const WWR = 0.19;   // rear wheel width
+  const WWF = 0.12;   // front wheel width
+  const AH  = WR;     // axle centre height (wheels sit on y=0 ground)
+
+  const matRed   = new THREE.MeshStandardMaterial({ color: 0xee1e1e, metalness: 0.3, roughness: 0.45 });
+  const matRedD  = new THREE.MeshStandardMaterial({ color: 0xbb1515, metalness: 0.2, roughness: 0.5 });
+  const matBlack = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.85 });
+  const matHub   = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.65, roughness: 0.3 });
+  const matSeat  = new THREE.MeshStandardMaterial({ color: 0x181818, roughness: 0.85 });
+  const matMetal = new THREE.MeshStandardMaterial({ color: 0x909090, metalness: 0.7, roughness: 0.3 });
+  const matBump  = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.1, roughness: 0.7 });
+
+  // Low, flat main chassis plate
+  const chassisPlate = new THREE.Mesh(new THREE.BoxGeometry(CW * 0.82, 0.065, CL * 0.80), matRed);
+  chassisPlate.position.y = AH + 0.032;
+  kart.add(chassisPlate);
+
+  // Front nose floor extension
+  const noseFloor = new THREE.Mesh(new THREE.BoxGeometry(CW * 0.60, 0.055, CL * 0.15), matRed);
+  noseFloor.position.set(0, AH + 0.027, CL * 0.46);
+  kart.add(noseFloor);
+
+  // Side pods (frame rails hugging the engine bay)
+  for (const side of [-1, 1]) {
+    const pod = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.13, CL * 0.40), matRedD);
+    pod.position.set(side * CW * 0.46, AH + 0.065, -CL * 0.08);
+    kart.add(pod);
+  }
+
+  // Front & rear bumpers (black bars)
+  const fBump = new THREE.Mesh(new THREE.BoxGeometry(CW * 0.92, 0.06, 0.055), matBump);
+  fBump.position.set(0, AH + 0.03, CL * 0.44);
+  kart.add(fBump);
+  const rBump = new THREE.Mesh(new THREE.BoxGeometry(CW * 0.92, 0.06, 0.055), matBump);
+  rBump.position.set(0, AH + 0.03, -CL * 0.44);
+  kart.add(rBump);
+
+  // Racing bucket seat (back + base)
+  const seatBack = new THREE.Mesh(new THREE.BoxGeometry(CW * 0.40, 0.34, 0.055), matSeat);
+  seatBack.position.set(CW * 0.02, AH + 0.22, -CL * 0.13);
+  kart.add(seatBack);
+  const seatBase = new THREE.Mesh(new THREE.BoxGeometry(CW * 0.40, 0.055, CL * 0.22), matSeat);
+  seatBase.position.set(CW * 0.02, AH + 0.10, CL * 0.01);
+  kart.add(seatBase);
+
+  // Steering column + wheel
+  const steerCol = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.017, 0.26, 8), matMetal);
+  steerCol.rotation.x = -0.65;
+  steerCol.position.set(0, AH + 0.22, CL * 0.24);
+  kart.add(steerCol);
+  const steerWheel = new THREE.Mesh(new THREE.TorusGeometry(0.115, 0.014, 8, 24), matBlack);
+  steerWheel.rotation.x = -Math.PI / 3.8;
+  steerWheel.position.set(0, AH + 0.37, CL * 0.31);
+  kart.add(steerWheel);
+
+  // Wheel factory: tire + silver rim ring + centre hub
+  function makeWheel(isRear) {
+    const ww = isRear ? WWR : WWF;
+    const grp = new THREE.Group();
+    const tire = new THREE.Mesh(new THREE.CylinderGeometry(WR, WR, ww, 22), matBlack);
+    tire.rotation.z = Math.PI / 2;
+    grp.add(tire);
+    const rim = new THREE.Mesh(new THREE.CylinderGeometry(WR * 0.62, WR * 0.62, ww + 0.01, 14), matHub);
+    rim.rotation.z = Math.PI / 2;
+    grp.add(rim);
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(WR * 0.28, WR * 0.28, ww + 0.03, 6), matMetal);
+    hub.rotation.z = Math.PI / 2;
+    grp.add(hub);
+    return grp;
+  }
+
+  const FZ = CL * 0.37;          // front axle local-Z
+  const RZ = -CL * 0.34;         // rear axle local-Z
+  for (const side of [-1, 1]) {
+    const fw = makeWheel(false);
+    fw.position.set(side * (CW * 0.50 + WWF * 0.5), AH, FZ);
+    kart.add(fw); kartWheels.push(fw);
+
+    const rw = makeWheel(true);
+    rw.position.set(side * (CW * 0.48 + WWR * 0.5), AH, RZ);
+    kart.add(rw); kartWheels.push(rw);
+  }
   scene.add(kart);
 
   // Build cumulative time array. Uses each path point's t_s if provided
@@ -263,6 +334,22 @@ async function main() {
   const camPos = new THREE.Vector3();
   const camTarget = new THREE.Vector3();
 
+  // Mouse orbit: drag to rotate view around kart
+  let orbitYaw   = 0;     // extra horizontal rotation (radians)
+  let orbitPitch = 0.28;  // vertical angle (radians; 0 = horizontal)
+  let isDragging = false, lastMX = 0, lastMY = 0;
+  renderer.domElement.addEventListener('mousedown', e => {
+    isDragging = true; lastMX = e.clientX; lastMY = e.clientY;
+  });
+  renderer.domElement.addEventListener('mouseup',    () => { isDragging = false; });
+  renderer.domElement.addEventListener('mouseleave', () => { isDragging = false; });
+  renderer.domElement.addEventListener('mousemove',  e => {
+    if (!isDragging) return;
+    orbitYaw   += (e.clientX - lastMX) * 0.006;
+    orbitPitch  = Math.max(0.05, Math.min(1.35, orbitPitch - (e.clientY - lastMY) * 0.005));
+    lastMX = e.clientX; lastMY = e.clientY;
+  });
+
   function animate() {
     const dt = Math.min(clock.getDelta(), 0.1);
     elapsed += dt;
@@ -273,13 +360,20 @@ async function main() {
     kart.position.set(wx, 0, wz);
     kart.rotation.y = h;
 
+    // Spin wheels proportional to distance covered this frame
+    const spinDelta = (s.speed * dt) / WR;
+    for (const wg of kartWheels) wg.rotation.x += spinDelta;
+
     const speedFrac = Math.min(1, s.speed / meta.top_speed_ms);
-    const back = 4.0 + speedFrac * 2.0;
-    const up   = 1.8 + speedFrac * 0.6;
-    const desiredX = wx - Math.sin(h) * back;
-    const desiredZ = wz - Math.cos(h) * back;
-    camPos.lerp(new THREE.Vector3(desiredX, up, desiredZ), 1 - Math.exp(-dt * 5));
-    camTarget.lerp(new THREE.Vector3(wx + Math.sin(h) * 2.0, 0.6, wz + Math.cos(h) * 2.0), 1 - Math.exp(-dt * 7));
+    const orbitDist = 4.5 + speedFrac * 2.0;
+    const totalYaw  = h + orbitYaw;
+    const cosP = Math.cos(orbitPitch), sinP = Math.sin(orbitPitch);
+    const desiredX = wx - Math.sin(totalYaw) * orbitDist * cosP;
+    const desiredY = orbitDist * sinP + 0.3;
+    const desiredZ = wz - Math.cos(totalYaw) * orbitDist * cosP;
+    const lerpRate = isDragging ? 1.0 : 1 - Math.exp(-dt * 5);
+    camPos.lerp(new THREE.Vector3(desiredX, desiredY, desiredZ), lerpRate);
+    camTarget.lerp(new THREE.Vector3(wx + Math.sin(h) * 1.5, 0.5, wz + Math.cos(h) * 1.5), 1 - Math.exp(-dt * 7));
     camera.position.copy(camPos);
     camera.lookAt(camTarget);
 
