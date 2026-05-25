@@ -414,6 +414,47 @@
         line-height: 1.1;
         color: #c8cfe8;
       }
+
+      /* ---- Astrobytes' whip cursor + SMACK on click ---- */
+      .whip-target,
+      .whip-target * {
+        cursor: url("images/whip.png") 6 6, auto;
+      }
+      .whip-target:active,
+      .whip-target:active * {
+        cursor: url("images/whip-crack.png") 6 6, auto;
+      }
+      .smack {
+        position: fixed;
+        z-index: 30000;
+        pointer-events: none;
+        font-family: "Comic Sans MS", cursive, sans-serif;
+        font-weight: 900;
+        font-size: 26px;
+        color: #fff;
+        -webkit-text-stroke: 2px #d11111;
+        text-shadow: 3px 3px 0 #000;
+        white-space: nowrap;
+        animation: smack-pop 0.5s ease-out forwards;
+      }
+      @keyframes smack-pop {
+        0% {
+          opacity: 0;
+          transform: translate(-50%, -50%) rotate(-12deg) scale(0.3);
+        }
+        30% {
+          opacity: 1;
+          transform: translate(-50%, -55%) rotate(-12deg) scale(1.5);
+        }
+        60% {
+          opacity: 1;
+          transform: translate(-50%, -62%) rotate(-12deg) scale(1.05);
+        }
+        100% {
+          opacity: 0;
+          transform: translate(-50%, -110%) rotate(-12deg) scale(1.2);
+        }
+      }
       .cursor {
         position: absolute;
         width: 20px;
@@ -814,6 +855,7 @@
           imgUrl: "employees/astro.png",
           description: "Director of Behavioral Stabilization",
           hide: false,
+          whip: true,
         },
         {
           name: "Illedan",
@@ -975,6 +1017,55 @@
         return card;
       }
 
+      // ---- Astrobytes' whip: SMACK burst + crack sound on click ----------
+      let whipAudioCtx;
+      function whipCrackSound() {
+        try {
+          whipAudioCtx =
+            whipAudioCtx ||
+            new (window.AudioContext || window.webkitAudioContext)();
+          const ctx = whipAudioCtx;
+          const dur = 0.12;
+          const buf = ctx.createBuffer(1, ctx.sampleRate * dur, ctx.sampleRate);
+          const data = buf.getChannelData(0);
+          for (let i = 0; i < data.length; i++) {
+            const t = i / data.length;
+            // white-noise burst with a fast decay → a short "crack"
+            data[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, 3);
+          }
+          const src = ctx.createBufferSource();
+          src.buffer = buf;
+          const hp = ctx.createBiquadFilter();
+          hp.type = "highpass";
+          hp.frequency.value = 1500;
+          const gain = ctx.createGain();
+          gain.gain.value = 0.25;
+          src.connect(hp);
+          hp.connect(gain);
+          gain.connect(ctx.destination);
+          src.start();
+        } catch (err) {
+          /* no Web Audio → just the visual SMACK */
+        }
+      }
+      function smackBurst(x, y) {
+        const s = document.createElement("div");
+        s.className = "smack";
+        s.textContent = "SMACK!";
+        s.style.left = x + "px";
+        s.style.top = y + "px";
+        document.body.appendChild(s);
+        s.addEventListener("animationend", () => s.remove());
+      }
+      // Reusable: give any element the whip cursor + smack-on-click.
+      function attachWhip(el) {
+        el.classList.add("whip-target");
+        el.addEventListener("mousedown", (e) => {
+          smackBurst(e.clientX, e.clientY);
+          whipCrackSound();
+        });
+      }
+
       document.addEventListener("DOMContentLoaded", () => {
         const container = document.getElementById("employees");
         if (!container) return;
@@ -992,6 +1083,7 @@
 
           // create the card
           const card = buildEmployeeCard(emp);
+          if (emp.whip) attachWhip(card);
 
           if (emp.hide) {
             // start hidden: card hidden, show hidden-box placeholder
