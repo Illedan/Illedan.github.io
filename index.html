@@ -581,6 +581,79 @@
         transform: translateX(-50%);
         box-shadow: 0 0 3px rgba(0, 0, 0, 0.5);
       }
+
+      /* ---- BlaiseEbuth's insults ---- */
+      .insult-host {
+        position: relative;
+      }
+      .insult-bubble {
+        position: absolute;
+        left: 50%;
+        bottom: 100%;
+        margin-bottom: 10px;
+        transform: translateX(-50%);
+        background: #fff;
+        color: #111;
+        font-family: "Comic Sans MS", cursive, sans-serif;
+        font-weight: bold;
+        font-size: 14px;
+        line-height: 1.25;
+        text-align: center;
+        padding: 8px 12px;
+        border: 2px solid #111;
+        border-radius: 12px;
+        width: max-content;
+        max-width: 220px;
+        box-shadow: 3px 3px 0 #000;
+        z-index: 60;
+        pointer-events: none;
+        animation: insult-pop 0.25s ease;
+      }
+      .insult-bubble::after {
+        /* tail outline */
+        content: "";
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        border-left: 9px solid transparent;
+        border-right: 9px solid transparent;
+        border-top: 11px solid #111;
+        z-index: 0;
+      }
+      .insult-bubble::before {
+        /* tail fill */
+        content: "";
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        border-left: 6px solid transparent;
+        border-right: 6px solid transparent;
+        border-top: 8px solid #fff;
+        z-index: 1;
+      }
+      .insult-bubble.leaving {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-10px) scale(0.95);
+        transition:
+          opacity 0.25s ease,
+          transform 0.25s ease;
+      }
+      @keyframes insult-pop {
+        0% {
+          opacity: 0;
+          transform: translateX(-50%) translateY(6px) scale(0.7);
+        }
+        60% {
+          opacity: 1;
+          transform: translateX(-50%) translateY(-2px) scale(1.06);
+        }
+        100% {
+          opacity: 1;
+          transform: translateX(-50%) translateY(0) scale(1);
+        }
+      }
       .cursor {
         position: absolute;
         width: 20px;
@@ -975,6 +1048,7 @@
           imgUrl: "employees/BE.png",
           description: "Supreme Executive Overlord of Troll Operations",
           hide: false,
+          insult: true,
         },
         {
           name: "Astrobytes",
@@ -1353,6 +1427,54 @@
         });
       }
 
+      // Reusable: clicking pops a random troll insult in a speech bubble.
+      const INSULTS = [
+        "no.",
+        "with your eyes.",
+        "it varies.",
+        "skill issue.",
+        "have you tried being good?",
+        "did you read the statement? no? thought so.",
+        "your code compiles. unfortunately.",
+        "fascinating. anyway.",
+        "wrong. confidently wrong.",
+        "this contribution is terrible. like all of them.",
+        "go touch a compiler.",
+        "works on my machine. yours is the problem.",
+        "ratio. + boss boost.",
+        "be nice? no.",
+      ];
+      function attachInsults(card) {
+        card.classList.add("insult-host");
+        let bubble = null;
+        let timer = null;
+        let lastIdx = -1;
+        card.addEventListener("click", () => {
+          let i;
+          do {
+            i = Math.floor(Math.random() * INSULTS.length);
+          } while (i === lastIdx && INSULTS.length > 1);
+          lastIdx = i;
+
+          if (bubble) bubble.remove();
+          clearTimeout(timer);
+
+          const b = document.createElement("div");
+          b.className = "insult-bubble";
+          b.textContent = INSULTS[i];
+          card.appendChild(b);
+          bubble = b;
+
+          timer = setTimeout(() => {
+            b.classList.add("leaving");
+            setTimeout(() => {
+              b.remove();
+              if (bubble === b) bubble = null;
+            }, 250);
+          }, 1900);
+        });
+      }
+
       document.addEventListener("DOMContentLoaded", () => {
         const container = document.getElementById("employees");
         if (!container) return;
@@ -1374,6 +1496,7 @@
           if (emp.notify) attachNotifications(card);
           if (emp.frogs) attachFrogs(card);
           if (emp.lock) attachLock(card);
+          if (emp.insult) attachInsults(card);
 
           if (emp.hide) {
             // start hidden: card hidden, show hidden-box placeholder
