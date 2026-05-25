@@ -654,6 +654,202 @@
           transform: translateX(-50%) translateY(0) scale(1);
         }
       }
+
+      /* ---- shared card-cover overlay (Illedan / MSmits / zasmu) ---- */
+      .fx-host {
+        position: relative;
+      }
+      .card-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 40;
+        box-sizing: border-box;
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        text-align: center;
+        background: rgba(18, 20, 28, 0.93);
+        color: #e6edf3;
+        font-family: system-ui, -apple-system, sans-serif;
+        animation: overlay-in 0.18s ease;
+      }
+      .card-overlay.leaving {
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+      @keyframes overlay-in {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
+      /* Illedan — self-cancelling submit */
+      .submit-label {
+        font-weight: 700;
+        font-size: 13px;
+      }
+      .submit-label.cancelled {
+        color: #ff5b6b;
+      }
+      .submit-track {
+        width: 82%;
+        height: 14px;
+        background: #2a2f3a;
+        border: 1px solid #444b57;
+        border-radius: 7px;
+        overflow: hidden;
+      }
+      .submit-fill {
+        height: 100%;
+        width: 0;
+        background: linear-gradient(90deg, #36d07a, #7ef2a8);
+      }
+      .submit-fill.cancelled {
+        background: linear-gradient(90deg, #ff5b6b, #ffb1b8);
+      }
+
+      /* MSmits — the answer is 42 */
+      .truth-num {
+        font-family: "Courier New", monospace;
+        font-size: 40px;
+        font-weight: 900;
+        line-height: 1;
+      }
+      .truth-num.locked {
+        color: #7ef2a8;
+        text-shadow: 0 0 12px rgba(126, 242, 168, 0.7);
+        animation: truth-pop 0.3s ease;
+      }
+      @keyframes truth-pop {
+        0% {
+          transform: scale(0.6);
+        }
+        60% {
+          transform: scale(1.3);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+      .truth-cap {
+        font-size: 12px;
+        color: #aeb6c2;
+      }
+
+      /* zasmu — gradient descent into a local minimum */
+      .descent-svg {
+        width: 100%;
+        max-width: 150px;
+        height: auto;
+      }
+      .descent-ball {
+        fill: #ffd166;
+      }
+      .descent-cap {
+        font-size: 12px;
+        color: #aeb6c2;
+      }
+      .descent-cap.stuck {
+        color: #ffd166;
+        font-weight: 700;
+      }
+
+      /* aCat — fabricated tournaments */
+      #tournament-toasts {
+        position: fixed;
+        right: 16px;
+        bottom: 16px;
+        z-index: 26000;
+        display: flex;
+        flex-direction: column-reverse;
+        gap: 8px;
+        pointer-events: none;
+      }
+      .tournament-toast {
+        max-width: 280px;
+        padding: 8px 12px;
+        background: #20252e;
+        color: #e6edf3;
+        border: 2px solid #f2bb13;
+        border-left-width: 6px;
+        border-radius: 8px;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+        font-family: system-ui, -apple-system, sans-serif;
+      }
+      .tournament-toast.leaving {
+        opacity: 0;
+        transform: translateX(24px);
+        transition: all 0.3s ease;
+      }
+      .tt-title {
+        font-weight: 800;
+        font-size: 13px;
+      }
+      .tt-sub {
+        margin-top: 2px;
+        font-size: 11px;
+        color: #aeb6c2;
+      }
+      @keyframes toast-in {
+        from {
+          opacity: 0;
+          transform: translateX(24px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+      .tournament-toast {
+        animation: toast-in 0.25s ease;
+      }
+
+      /* aangairbender — unnecessary tooling */
+      .tool-rack {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        justify-content: center;
+        margin-top: 10px;
+      }
+      .tool-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 8px;
+        background: #2a2f3a;
+        color: #cdd6e0;
+        border: 1px solid #3a4150;
+        border-radius: 6px;
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        transition:
+          transform 0.1s ease,
+          background 0.15s ease;
+        animation: tool-pop 0.2s ease;
+      }
+      .tool-btn:hover {
+        background: #333a47;
+      }
+      @keyframes tool-pop {
+        from {
+          opacity: 0;
+          transform: scale(0.6);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
       .cursor {
         position: absolute;
         width: 20px;
@@ -1062,12 +1258,14 @@
           imgUrl: "employees/ille.png",
           description: "Supreme Code Architect",
           hide: false,
+          submit: true,
         },
         {
           name: "aCat",
           imgUrl: "employees/acat.jpg",
           description: "Tournament Fabricator",
           hide: false,
+          tournament: true,
         },
         {
           name: "leojean890",
@@ -1095,6 +1293,7 @@
           imgUrl: "employees/msmits.jpg",
           description: "Numerical Truth Seeker",
           hide: false,
+          truth: true,
         },
         {
           name: "gaha",
@@ -1108,12 +1307,14 @@
           imgUrl: "employees/aangairbender.jpg",
           description: "VP of Unnecessary Tooling",
           hide: false,
+          tools: true,
         },
         {
           name: "zasmu",
           imgUrl: "employees/zasmu.jpg",
           description: "Curator of Local Minima",
           hide: false,
+          descent: true,
         },
         {
           name: "MSz",
@@ -1475,6 +1676,233 @@
         });
       }
 
+      // Illedan — "Submitting to Legend…" that cancels itself near the top.
+      function attachSubmit(card) {
+        card.classList.add("fx-host");
+        let box = null;
+        let raf = null;
+        let t = null;
+        card.addEventListener("click", () => {
+          if (box) box.remove();
+          cancelAnimationFrame(raf);
+          clearTimeout(t);
+          box = document.createElement("div");
+          box.className = "card-overlay submit-box";
+          box.innerHTML =
+            '<div class="submit-label">Submitting to Legend…</div>' +
+            '<div class="submit-track"><div class="submit-fill"></div></div>';
+          card.appendChild(box);
+          const fill = box.querySelector(".submit-fill");
+          const label = box.querySelector(".submit-label");
+          const thisBox = box;
+          const target = 90 + Math.random() * 6; // chickens out at 90–96%
+          const dur = 1100 + Math.random() * 500;
+          const start = performance.now();
+          function step(now) {
+            const k = Math.min((now - start) / dur, 1);
+            fill.style.width =
+              (target * (1 - Math.pow(1 - k, 2))).toFixed(1) + "%";
+            if (k < 1) {
+              raf = requestAnimationFrame(step);
+            } else {
+              label.textContent = "Submit cancelled ✕";
+              label.classList.add("cancelled");
+              fill.classList.add("cancelled");
+              t = setTimeout(() => {
+                thisBox.classList.add("leaving");
+                setTimeout(() => {
+                  thisBox.remove();
+                  if (box === thisBox) box = null;
+                }, 300);
+              }, 1200);
+            }
+          }
+          raf = requestAnimationFrame(step);
+        });
+      }
+
+      // MSmits — numbers spin, then settle on the only truth: 42.
+      function attachTruth(card) {
+        card.classList.add("fx-host");
+        let box = null;
+        let iv = null;
+        let t = null;
+        card.addEventListener("click", () => {
+          if (box) box.remove();
+          clearInterval(iv);
+          clearTimeout(t);
+          box = document.createElement("div");
+          box.className = "card-overlay truth-box";
+          box.innerHTML =
+            '<div class="truth-num">0</div>' +
+            '<div class="truth-cap">seeking truth…</div>';
+          card.appendChild(box);
+          const num = box.querySelector(".truth-num");
+          const cap = box.querySelector(".truth-cap");
+          const thisBox = box;
+          const end = performance.now() + 1200;
+          iv = setInterval(() => {
+            if (performance.now() >= end) {
+              clearInterval(iv);
+              num.textContent = "42";
+              num.classList.add("locked");
+              cap.textContent = "the answer is 42";
+              t = setTimeout(() => {
+                thisBox.classList.add("leaving");
+                setTimeout(() => {
+                  thisBox.remove();
+                  if (box === thisBox) box = null;
+                }, 300);
+              }, 1500);
+            } else {
+              num.textContent = Math.floor(Math.random() * 100);
+            }
+          }, 55);
+        });
+      }
+
+      // zasmu — a ball rolls downhill and gets stuck in a local minimum.
+      function attachDescent(card) {
+        card.classList.add("fx-host");
+        const W = 150;
+        const H = 96;
+        const pad = 10;
+        const L = (u) =>
+          0.9 -
+          0.35 * Math.exp(-((u - 0.3) ** 2) / 0.01) -
+          0.7 * Math.exp(-((u - 0.72) ** 2) / 0.01);
+        const X = (u) => pad + u * (W - 2 * pad);
+        const Y = (loss) => pad + (1 - loss) * (H - 2 * pad);
+        let box = null;
+        let raf = null;
+        let t = null;
+        card.addEventListener("click", () => {
+          if (box) box.remove();
+          cancelAnimationFrame(raf);
+          clearTimeout(t);
+          let d = "";
+          for (let i = 0; i <= 60; i++) {
+            const u = i / 60;
+            d +=
+              (i ? "L" : "M") + X(u).toFixed(1) + " " + Y(L(u)).toFixed(1) + " ";
+          }
+          box = document.createElement("div");
+          box.className = "card-overlay descent-box";
+          box.innerHTML =
+            '<svg viewBox="0 0 ' +
+            W +
+            " " +
+            H +
+            '" class="descent-svg">' +
+            '<path d="' +
+            d +
+            '" fill="none" stroke="#5ad7ff" stroke-width="2"/>' +
+            '<circle class="descent-ball" r="5" cx="' +
+            X(0.1) +
+            '" cy="' +
+            Y(L(0.1)) +
+            '"/></svg>' +
+            '<div class="descent-cap">descending…</div>';
+          card.appendChild(box);
+          const ball = box.querySelector(".descent-ball");
+          const cap = box.querySelector(".descent-cap");
+          const thisBox = box;
+          let u = 0.1;
+          let stuck = 0;
+          const deriv = (x) => (L(x + 0.001) - L(x - 0.001)) / 0.002;
+          function step() {
+            const slope = deriv(u);
+            let du = -0.004 * slope;
+            du = Math.max(-0.015, Math.min(0.015, du));
+            u = Math.max(0.03, Math.min(0.97, u + du));
+            ball.setAttribute("cx", X(u).toFixed(1));
+            ball.setAttribute("cy", Y(L(u)).toFixed(1));
+            stuck = Math.abs(slope) < 0.03 ? stuck + 1 : 0;
+            if (stuck > 18) {
+              cap.textContent = "stuck in a local minimum 🪤";
+              cap.classList.add("stuck");
+              t = setTimeout(() => {
+                thisBox.classList.add("leaving");
+                setTimeout(() => {
+                  thisBox.remove();
+                  if (box === thisBox) box = null;
+                }, 300);
+              }, 1700);
+              return;
+            }
+            raf = requestAnimationFrame(step);
+          }
+          raf = requestAnimationFrame(step);
+        });
+      }
+
+      // aCat — fabricates a fresh nonsense tournament on every click.
+      const TT_A = ["Hypersonic", "Quantum", "Mandatory", "Synergistic", "Forbidden", "Recursive", "Blockchain", "Passive-Aggressive", "Legendary", "Suspicious", "Artisanal", "Unranked"];
+      const TT_B = ["Battle", "Clash", "Cup", "Gauntlet", "Showdown", "Championship", "Invitational", "Brawl"];
+      const TT_C = ["Quantum Yaks", "Spreadsheet Wizards", "Idle Bots", "Sleepy Interns", "Angry Turtles", "Compiler Gremlins", "Rubber Ducks", "Lost Semicolons", "Caffeinated Squirrels", "Unpaid Trolls"];
+      const pick = (a) => a[Math.floor(Math.random() * a.length)];
+      function attachTournament(card) {
+        card.addEventListener("click", () => {
+          let host = document.getElementById("tournament-toasts");
+          if (!host) {
+            host = document.createElement("div");
+            host.id = "tournament-toasts";
+            document.body.appendChild(host);
+          }
+          const toast = document.createElement("div");
+          toast.className = "tournament-toast";
+          const name = pick(TT_A) + " " + pick(TT_B) + " of the " + pick(TT_C);
+          toast.innerHTML =
+            '<div class="tt-title">🏆 ' +
+            name +
+            "</div>" +
+            '<div class="tt-sub">Bronze league opens now · ' +
+            (3 + Math.floor(Math.random() * 4000)) +
+            " players already losing</div>";
+          host.appendChild(toast);
+          setTimeout(() => {
+            toast.classList.add("leaving");
+            setTimeout(() => toast.remove(), 300);
+          }, 3600);
+        });
+      }
+
+      // aangairbender — every click bolts on another tool nobody asked for.
+      const USELESS_TOOLS = [
+        ["🔧", "Lint the linter"],
+        ["⚙️", "Refactor the refactorer"],
+        ["🪛", "Configure the configurator"],
+        ["🔨", "Build the build tool"],
+        ["📦", "Bundle the bundler"],
+        ["🧹", "Format the formatter"],
+        ["🔌", "Plugin for plugins"],
+        ["🧪", "Test the tests"],
+        ["📊", "Dashboard for dashboards"],
+        ["🤖", "Automate the automation"],
+        ["🗜️", "Compress the compressor"],
+        ["🧰", "Toolkit for toolkits"],
+      ];
+      function attachTools(card) {
+        const rack = document.createElement("div");
+        rack.className = "tool-rack";
+        card.appendChild(rack);
+        let i = 0;
+        card.addEventListener("click", (e) => {
+          if (e.target.closest(".tool-btn")) return; // clicking a tool ≠ new tool
+          const [icon, label] = USELESS_TOOLS[i % USELESS_TOOLS.length];
+          i++;
+          const btn = document.createElement("button");
+          btn.className = "tool-btn";
+          btn.innerHTML = "<span>" + icon + "</span><span>" + label + "</span>";
+          btn.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            btn.style.transform = "translateX(3px)";
+            setTimeout(() => (btn.style.transform = ""), 110);
+          });
+          rack.appendChild(btn);
+        });
+      }
+
       document.addEventListener("DOMContentLoaded", () => {
         const container = document.getElementById("employees");
         if (!container) return;
@@ -1497,6 +1925,11 @@
           if (emp.frogs) attachFrogs(card);
           if (emp.lock) attachLock(card);
           if (emp.insult) attachInsults(card);
+          if (emp.submit) attachSubmit(card);
+          if (emp.truth) attachTruth(card);
+          if (emp.descent) attachDescent(card);
+          if (emp.tournament) attachTournament(card);
+          if (emp.tools) attachTools(card);
 
           if (emp.hide) {
             // start hidden: card hidden, show hidden-box placeholder
