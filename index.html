@@ -512,6 +512,75 @@
         z-index: 25000;
         will-change: left, top, transform;
       }
+
+      /* ---- dimkadimon's combination lock ---- */
+      .lock {
+        position: relative;
+        width: 100px;
+        height: 100px;
+        flex: 0 0 auto;
+        touch-action: none;
+        user-select: none;
+      }
+      .lock-mark {
+        position: absolute;
+        top: -10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 0;
+        height: 0;
+        border-left: 7px solid transparent;
+        border-right: 7px solid transparent;
+        border-top: 12px solid #ffd700;
+        z-index: 3;
+        filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6));
+      }
+      .lock-dial {
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle at 50% 38%,
+          #8a8f96,
+          #3a3d42 65%,
+          #232528
+        );
+        border: 3px solid #15171a;
+        box-shadow:
+          inset 0 0 10px rgba(0, 0, 0, 0.85),
+          inset 0 3px 6px rgba(255, 255, 255, 0.15),
+          0 3px 8px rgba(0, 0, 0, 0.5);
+        cursor: grab;
+      }
+      .lock-dial.turning {
+        cursor: grabbing;
+      }
+      .lock-dial::before {
+        /* tick-mark ring */
+        content: "";
+        position: absolute;
+        inset: 4px;
+        border-radius: 50%;
+        background: repeating-conic-gradient(
+          #dfe3e8 0deg 1.4deg,
+          transparent 1.4deg 9deg
+        );
+        -webkit-mask: radial-gradient(circle, transparent 72%, #000 74%);
+        mask: radial-gradient(circle, transparent 72%, #000 74%);
+      }
+      .lock-dial::after {
+        /* red index grip */
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 7px;
+        width: 5px;
+        height: 30px;
+        background: linear-gradient(#ff4d5e, #c8102e);
+        border-radius: 3px;
+        transform: translateX(-50%);
+        box-shadow: 0 0 3px rgba(0, 0, 0, 0.5);
+      }
       .cursor {
         position: absolute;
         width: 20px;
@@ -938,6 +1007,7 @@
           imgUrl: "employees/dim.JPG",
           description: "Keeper of Competitive Assets",
           hide: false,
+          lock: true,
         },
         {
           name: "eulerscheZahl",
@@ -1206,6 +1276,83 @@
         });
       }
 
+      // Reusable: clicking turns the avatar into a combination lock. Drag the
+      // dial around; a full 360° turn in either direction unlocks the image.
+      function attachLock(card) {
+        card.addEventListener("click", () => {
+          const img = card.querySelector("img");
+          if (!img || card.dataset.locked === "1") return;
+          card.dataset.locked = "1";
+
+          const lock = document.createElement("div");
+          lock.className = "lock";
+          lock.innerHTML =
+            '<div class="lock-mark"></div>' + '<div class="lock-dial"></div>';
+          img.style.display = "none";
+          img.insertAdjacentElement("afterend", lock);
+
+          const dial = lock.querySelector(".lock-dial");
+          let rotation = 0;
+          let totalTurn = 0;
+          let lastAngle = 0;
+          let dragging = false;
+
+          const center = () => {
+            const r = dial.getBoundingClientRect();
+            return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+          };
+          const angleAt = (e, c) =>
+            (Math.atan2(e.clientY - c.y, e.clientX - c.x) * 180) / Math.PI;
+          const norm = (a) => {
+            a = ((a + 180) % 360 + 360) % 360;
+            return a - 180;
+          };
+
+          function onMove(e) {
+            if (!dragging) return;
+            const a = angleAt(e, center());
+            const delta = norm(a - lastAngle);
+            lastAngle = a;
+            rotation += delta;
+            totalTurn += delta;
+            dial.style.transform = `rotate(${rotation}deg)`;
+            if (Math.abs(totalTurn) >= 360) unlock();
+          }
+          function onUp() {
+            dragging = false;
+            dial.classList.remove("turning");
+            window.removeEventListener("pointermove", onMove);
+            window.removeEventListener("pointerup", onUp);
+          }
+          function unlock() {
+            onUp();
+            dial.style.transition = "transform 0.4s cubic-bezier(.2,.8,.2,1)";
+            dial.style.transform = `rotate(${rotation + 360}deg)`;
+            lock.style.transition = "opacity 0.4s ease";
+            lock.style.opacity = "0";
+            setTimeout(() => {
+              lock.remove();
+              img.style.display = "";
+              img.style.opacity = "0";
+              requestAnimationFrame(() => {
+                img.style.transition = "opacity 0.3s ease";
+                img.style.opacity = "1";
+              });
+              card.dataset.locked = "0";
+            }, 400);
+          }
+          dial.addEventListener("pointerdown", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dragging = true;
+            lastAngle = angleAt(e, center());
+            dial.classList.add("turning");
+            window.addEventListener("pointermove", onMove);
+            window.addEventListener("pointerup", onUp);
+          });
+        });
+      }
+
       document.addEventListener("DOMContentLoaded", () => {
         const container = document.getElementById("employees");
         if (!container) return;
@@ -1226,6 +1373,7 @@
           if (emp.whip) attachWhip(card);
           if (emp.notify) attachNotifications(card);
           if (emp.frogs) attachFrogs(card);
+          if (emp.lock) attachLock(card);
 
           if (emp.hide) {
             // start hidden: card hidden, show hidden-box placeholder
