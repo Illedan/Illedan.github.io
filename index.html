@@ -455,6 +455,50 @@
           transform: translate(-50%, -110%) rotate(-12deg) scale(1.2);
         }
       }
+
+      /* ---- leojean890's growing notification badge ---- */
+      .notif-host {
+        position: relative;
+      }
+      .notif-badge {
+        position: absolute;
+        top: 0;
+        right: 0;
+        transform: translate(50%, -50%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+        background: #e8243a;
+        color: #fff;
+        border: 2px solid #fff;
+        border-radius: 50%;
+        font-family: system-ui, -apple-system, sans-serif;
+        font-weight: 800;
+        line-height: 1;
+        white-space: nowrap;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+        z-index: 50;
+        pointer-events: none;
+        transition:
+          width 0.18s ease,
+          height 0.18s ease,
+          font-size 0.18s ease;
+      }
+      .notif-badge.pop {
+        animation: notif-pop 0.18s ease;
+      }
+      @keyframes notif-pop {
+        0% {
+          transform: translate(50%, -50%) scale(1);
+        }
+        50% {
+          transform: translate(50%, -50%) scale(1.35);
+        }
+        100% {
+          transform: translate(50%, -50%) scale(1);
+        }
+      }
       .cursor {
         position: absolute;
         width: 20px;
@@ -874,6 +918,7 @@
           imgUrl: "employees/leo.png",
           description: "Notification Overlord",
           hide: false,
+          notify: true,
         },
         {
           name: "dimkadimon",
@@ -1066,6 +1111,31 @@
         });
       }
 
+      // Reusable: a notification badge that grows by 1-10 on every click.
+      function attachNotifications(card) {
+        card.classList.add("notif-host");
+        const badge = document.createElement("div");
+        badge.className = "notif-badge";
+        badge.style.display = "none";
+        card.appendChild(badge);
+
+        let count = 0;
+        card.addEventListener("click", () => {
+          count += Math.floor(Math.random() * 10) + 1; // +1..10, no limit
+          badge.textContent = count;
+          const digits = String(count).length;
+          const size = 24 + count * 1.5; // circle grows with the count
+          const font = Math.min(size * 0.5, (size * 1.2) / digits);
+          badge.style.width = size + "px";
+          badge.style.height = size + "px";
+          badge.style.fontSize = font + "px";
+          badge.style.display = "flex";
+          badge.classList.remove("pop");
+          void badge.offsetWidth; // reflow → restart the pop animation
+          badge.classList.add("pop");
+        });
+      }
+
       document.addEventListener("DOMContentLoaded", () => {
         const container = document.getElementById("employees");
         if (!container) return;
@@ -1084,6 +1154,7 @@
           // create the card
           const card = buildEmployeeCard(emp);
           if (emp.whip) attachWhip(card);
+          if (emp.notify) attachNotifications(card);
 
           if (emp.hide) {
             // start hidden: card hidden, show hidden-box placeholder
