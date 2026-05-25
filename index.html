@@ -382,6 +382,101 @@
         pointer-events: none;
         transform: translate(-50%, -50%);
       }
+
+      .contest-section {
+        margin: 30px auto 10px;
+        padding: 10px;
+      }
+      .trollfarm-banner {
+        display: block;
+        width: 70%;
+        max-width: 340px;
+        margin: 0 auto 14px;
+        filter: drop-shadow(0 0 18px rgba(242, 187, 19, 0.65));
+      }
+      .podium {
+        display: flex;
+        justify-content: center;
+        align-items: flex-end;
+        gap: 18px;
+        flex-wrap: wrap;
+        max-width: 720px;
+        margin: 24px auto;
+        padding: 16px 16px 8px;
+        background: #c0c0c0;
+        border: 5px ridge #808080;
+      }
+      .podium-place {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 190px;
+      }
+      .podium-avatar {
+        width: 92px;
+        height: 92px;
+        object-fit: cover;
+        border: 5px ridge #ffd700;
+        background: #333;
+        margin-bottom: 6px;
+      }
+      .podium-name {
+        font-family: "Comic Sans MS", cursive, sans-serif;
+        font-weight: bold;
+        font-size: 15px;
+        color: #000080;
+        background: #ffffcc;
+        padding: 3px 10px;
+        margin-bottom: 6px;
+        border: 2px outset #ffffff;
+        white-space: nowrap;
+      }
+      .podium-block {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: #000;
+        font-family: "Comic Sans MS", cursive, sans-serif;
+        border: 6px outset;
+        box-shadow: 7px 7px 0 #000;
+      }
+      .podium-medal {
+        font-size: 34px;
+        line-height: 1;
+      }
+      .podium-rank {
+        font-size: 28px;
+        font-weight: 900;
+        text-shadow: 1px 1px 0 #fff;
+      }
+      .place-1 .podium-avatar {
+        width: 116px;
+        height: 116px;
+        border-color: #ffd700;
+      }
+      .place-1 .podium-block {
+        height: 175px;
+        background: linear-gradient(#fff7c0, #ffd700 45%, #d4af00);
+        border-color: #ffd700;
+      }
+      .place-2 .podium-avatar {
+        border-color: #c0c0c0;
+      }
+      .place-2 .podium-block {
+        height: 130px;
+        background: linear-gradient(#ffffff, #c0c0c0 45%, #909090);
+        border-color: #c0c0c0;
+      }
+      .place-3 .podium-avatar {
+        border-color: #cd7f32;
+      }
+      .place-3 .podium-block {
+        height: 95px;
+        background: linear-gradient(#e8b07a, #cd7f32 45%, #9c5e22);
+        border-color: #cd7f32;
+      }
     </style>
   </head>
   <body>
@@ -432,6 +527,51 @@
         </p>
       </div>
 
+      <h2>🏆 Contest Hall of Champions 🏆</h2>
+      <div class="contest-section">
+        <img
+          class="trollfarm-banner"
+          src="contest/trollfarm.png"
+          alt="Troll Farm"
+        />
+        <div class="podium">
+          <div class="podium-place place-2">
+            <img
+              class="podium-avatar"
+              src="contest/norxondor_gorgonax.png"
+              alt="norxondor_gorgonax"
+            />
+            <div class="podium-name">norxondor_gorgonax</div>
+            <div class="podium-block">
+              <span class="podium-medal">🥈</span>
+              <span class="podium-rank">2</span>
+            </div>
+          </div>
+
+          <div class="podium-place place-1">
+            <img
+              class="podium-avatar"
+              src="contest/delineate.png"
+              alt="delineate"
+            />
+            <div class="podium-name">delineate</div>
+            <div class="podium-block">
+              <span class="podium-medal">🥇</span>
+              <span class="podium-rank">1</span>
+            </div>
+          </div>
+
+          <div class="podium-place place-3">
+            <img class="podium-avatar" src="contest/yamo.png" alt="yamo" />
+            <div class="podium-name">yamo</div>
+            <div class="podium-block">
+              <span class="podium-medal">🥉</span>
+              <span class="podium-rank">3</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <h2>Senior Executive Leadership Board of Directors</h2>
       <div id="employees"></div>
 
@@ -449,7 +589,6 @@
           padding: 20px;
         "
       >
-        <div class="sinecure-badge">gaha</div>
         <div class="sinecure-badge">dbf</div>
         <div class="sinecure-badge">Lysk</div>
         <div class="sinecure-badge">Thyl</div>
@@ -472,7 +611,6 @@
       >
         <div class="sinecure-badge">oreshnik</div>
         <div class="sinecure-badge">Delicious31415</div>
-        <div class="sinecure-badge">aangairbender</div>
         <div class="sinecure-badge">surgutti</div>
         <div class="sinecure-badge">I_love_CoC</div>
         <div class="sinecure-badge">Silverup</div>
@@ -646,6 +784,24 @@
           name: "MSmits",
           imgUrl: "employees/msmits.jpg",
           description: "Numerical Truth Seeker",
+          hide: false,
+        },
+        {
+          name: "gaha",
+          imgUrl: "employees/gaha.png",
+          description: "Warden of Branching Futures",
+          hide: false,
+        },
+        {
+          name: "aangairbender",
+          imgUrl: "employees/aangairbender.jpg",
+          description: "VP of Unnecessary Tooling",
+          hide: false,
+        },
+        {
+          name: "zasmu",
+          imgUrl: "employees/zasmu.jpg",
+          description: "Curator of Local Minima",
           hide: false,
         },
         {
