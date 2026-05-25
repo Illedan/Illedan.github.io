@@ -355,6 +355,65 @@
           flex: 1 1 100%;
         }
       }
+
+      /* ---- Fractal card: click to split into 4 self-similar copies, forever.
+         Each cell is its own query container, so the card content auto-scales
+         (via cq* units) to whatever cell size it lands in. ---- */
+      .fractal-cell {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        box-sizing: border-box;
+        container-type: size;
+      }
+      .fractal-cell.branch {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 1fr 1fr;
+        gap: 4%;
+      }
+      .minicard {
+        width: 100%;
+        height: 100%;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3cqmin;
+        padding: 5cqmin;
+        background: #222;
+        color: #e5e9ff;
+        box-shadow: 5cqmin 4.5cqmin 5cqmin 0 palevioletred;
+        cursor: pointer;
+        overflow: hidden;
+        font-family:
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          sans-serif;
+      }
+      .minicard img {
+        width: 40cqmin;
+        height: 40cqmin;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 0.6cqmin solid #555;
+        background: #333;
+        pointer-events: none;
+      }
+      .minicard-name {
+        font-size: 8cqmin;
+        font-weight: 700;
+        text-align: center;
+        line-height: 1.1;
+      }
+      .minicard-desc {
+        font-size: 5cqmin;
+        text-align: center;
+        line-height: 1.1;
+        color: #c8cfe8;
+      }
       .cursor {
         position: absolute;
         width: 20px;
@@ -797,6 +856,7 @@
           imgUrl: "employees/gaha.png",
           description: "Warden of Branching Futures",
           hide: false,
+          fractal: true,
         },
         {
           name: "aangairbender",
@@ -818,6 +878,103 @@
         },
       ];
 
+      // ---- Reusable "fractal card" component ----------------------------
+      // Level 0 looks exactly like a normal employee card (same size as the
+      // others). On click it morphs in place into a 2x2 grid of self-similar
+      // copies; each copy is clickable again, forever. The CSS (.fractal-cell /
+      // .minicard with cq* units) shrinks the card to fit whatever cell it
+      // lands in.
+      function buildEmployeeCard(emp) {
+        const card = document.createElement("div");
+        card.className = "employee-card";
+
+        const img = document.createElement("img");
+        img.src = emp.imgUrl;
+        img.alt = emp.name + " avatar";
+
+        const nameEl = document.createElement("div");
+        nameEl.className = "employee-name";
+        nameEl.textContent = emp.name;
+
+        const desc = document.createElement("div");
+        desc.className = "employee-desc";
+        desc.textContent = emp.description;
+
+        card.append(img, nameEl, desc);
+        return card;
+      }
+
+      function buildMiniCard(emp) {
+        const card = document.createElement("div");
+        card.className = "minicard";
+
+        const img = document.createElement("img");
+        img.src = emp.imgUrl;
+        img.alt = emp.name + " avatar";
+
+        const name = document.createElement("div");
+        name.className = "minicard-name";
+        name.textContent = emp.name;
+
+        const desc = document.createElement("div");
+        desc.className = "minicard-desc";
+        desc.textContent = emp.description;
+
+        card.append(img, name, desc);
+        return card;
+      }
+
+      // Replace a cell's contents with a 2x2 grid of 4 fresh leaves.
+      function splitCell(cell, emp) {
+        cell.classList.remove("leaf");
+        cell.classList.add("branch");
+        cell.replaceChildren();
+        for (let i = 0; i < 4; i++) {
+          const child = document.createElement("div");
+          child.className = "fractal-cell";
+          cell.appendChild(child);
+          fractalLeaf(child, emp); // every copy is clickable again
+        }
+      }
+
+      // Turn a cell into a clickable leaf showing one mini card.
+      function fractalLeaf(cell, emp) {
+        cell.classList.remove("branch");
+        cell.classList.add("leaf");
+        cell.replaceChildren(buildMiniCard(emp));
+        cell.addEventListener(
+          "click",
+          function (e) {
+            e.stopPropagation();
+            splitCell(cell, emp); // this cell splits once; children take over
+          },
+          { once: true },
+        );
+      }
+
+      // Top-level card: identical to a normal employee card until clicked,
+      // then it becomes the fractal root at its exact current size so the
+      // footprint never changes.
+      function createFractalCard(emp) {
+        const card = buildEmployeeCard(emp);
+        card.style.cursor = "pointer";
+        card.addEventListener(
+          "click",
+          function (e) {
+            e.stopPropagation();
+            const rect = card.getBoundingClientRect();
+            const root = document.createElement("div");
+            root.className = "fractal-cell fractal-root";
+            root.style.width = rect.width + "px";
+            root.style.height = rect.height + "px";
+            card.replaceWith(root);
+            splitCell(root, emp);
+          },
+          { once: true },
+        );
+        return card;
+      }
+
       document.addEventListener("DOMContentLoaded", () => {
         const container = document.getElementById("employees");
         if (!container) return;
@@ -826,25 +983,15 @@
           const wrapper = document.createElement("div");
           wrapper.className = "employee-wrapper";
 
+          // fractal cards opt in via emp.fractal — reuse for anyone later
+          if (emp.fractal) {
+            wrapper.appendChild(createFractalCard(emp));
+            container.appendChild(wrapper);
+            return;
+          }
+
           // create the card
-          const card = document.createElement("div");
-          card.className = "employee-card";
-
-          const img = document.createElement("img");
-          img.src = emp.imgUrl;
-          img.alt = emp.name + " avatar";
-
-          const nameEl = document.createElement("div");
-          nameEl.className = "employee-name";
-          nameEl.textContent = emp.name;
-
-          const desc = document.createElement("div");
-          desc.className = "employee-desc";
-          desc.textContent = emp.description;
-
-          card.appendChild(img);
-          card.appendChild(nameEl);
-          card.appendChild(desc);
+          const card = buildEmployeeCard(emp);
 
           if (emp.hide) {
             // start hidden: card hidden, show hidden-box placeholder
