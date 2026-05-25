@@ -499,6 +499,19 @@
           transform: translate(50%, -50%) scale(1);
         }
       }
+
+      /* ---- eulerscheZahl's escaping frogs ---- */
+      .frog {
+        position: fixed;
+        left: 0;
+        top: 0;
+        font-size: 34px;
+        line-height: 1;
+        pointer-events: none;
+        user-select: none;
+        z-index: 25000;
+        will-change: left, top, transform;
+      }
       .cursor {
         position: absolute;
         width: 20px;
@@ -931,6 +944,7 @@
           imgUrl: "employees/euler.gif",
           description: "Official Amphibian Ambassador",
           hide: false,
+          frogs: true,
         },
         {
           name: "MSmits",
@@ -1136,6 +1150,62 @@
         });
       }
 
+      // Reusable: every click launches one frog hopping off in a random
+      // direction at a random speed until it leaves the screen (then it's
+      // gone). Spam-clicking = a screen full of frogs. Not optimized on
+      // purpose. 🐸
+      function spawnFrog(x, y) {
+        const frog = document.createElement("div");
+        frog.className = "frog";
+        frog.textContent = "🐸";
+        frog.style.fontSize = 26 + Math.random() * 20 + "px";
+        document.body.appendChild(frog);
+
+        const angle = Math.random() * Math.PI * 2; // random direction
+        const speed = 90 + Math.random() * 340; // random px/sec
+        const vx = Math.cos(angle) * speed;
+        const vy = Math.sin(angle) * speed;
+        const facing = vx < 0 ? -1 : 1;
+        const hopFreq = 5 + Math.random() * 7; // hops/sec
+        const hopHeight = 10 + Math.random() * 22;
+
+        let px = x;
+        let py = y;
+        let last = performance.now();
+
+        function frame(now) {
+          const dt = Math.min((now - last) / 1000, 0.05);
+          last = now;
+          px += vx * dt;
+          py += vy * dt;
+          const phase = (now / 1000) * hopFreq * Math.PI;
+          const bob = Math.abs(Math.sin(phase)) * hopHeight; // hopping
+          const tilt = Math.cos(phase) * 12 * facing;
+          frog.style.left = px + "px";
+          frog.style.top = py - bob + "px";
+          frog.style.transform = `translate(-50%, -50%) rotate(${tilt}deg) scaleX(${facing})`;
+
+          const m = 120;
+          if (
+            px < -m ||
+            px > window.innerWidth + m ||
+            py < -m ||
+            py > window.innerHeight + m
+          ) {
+            frog.remove(); // hopped off for the day
+            return;
+          }
+          requestAnimationFrame(frame);
+        }
+        requestAnimationFrame(frame);
+      }
+      function attachFrogs(card) {
+        card.addEventListener("click", () => {
+          const r = card.getBoundingClientRect();
+          spawnFrog(r.left + r.width / 2, r.top + r.height / 2);
+        });
+      }
+
       document.addEventListener("DOMContentLoaded", () => {
         const container = document.getElementById("employees");
         if (!container) return;
@@ -1155,6 +1225,7 @@
           const card = buildEmployeeCard(emp);
           if (emp.whip) attachWhip(card);
           if (emp.notify) attachNotifications(card);
+          if (emp.frogs) attachFrogs(card);
 
           if (emp.hide) {
             // start hidden: card hidden, show hidden-box placeholder
