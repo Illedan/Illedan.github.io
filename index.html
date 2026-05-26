@@ -539,47 +539,85 @@
         position: absolute;
         inset: 0;
         border-radius: 50%;
-        background: radial-gradient(
-          circle at 50% 38%,
-          #8a8f96,
-          #3a3d42 65%,
-          #232528
-        );
-        border: 3px solid #15171a;
+        background:
+          radial-gradient(
+            circle at 50% 40%,
+            rgba(255, 255, 255, 0.35),
+            rgba(255, 255, 255, 0) 46%
+          ),
+          conic-gradient(
+            #a3a9b2,
+            #5d626b,
+            #aab0b9,
+            #4f545c,
+            #9ba1aa,
+            #61666e,
+            #aab0b9,
+            #565b63,
+            #a3a9b2
+          );
+        border: 4px solid #15171a;
         box-shadow:
-          inset 0 0 10px rgba(0, 0, 0, 0.85),
-          inset 0 3px 6px rgba(255, 255, 255, 0.15),
-          0 3px 8px rgba(0, 0, 0, 0.5);
+          inset 0 0 0 2px #2b2e33,
+          inset 0 0 14px rgba(0, 0, 0, 0.7),
+          0 3px 8px rgba(0, 0, 0, 0.55);
         cursor: grab;
       }
       .lock-dial.turning {
         cursor: grabbing;
       }
       .lock-dial::before {
-        /* tick-mark ring */
+        /* engraved tick ring */
         content: "";
         position: absolute;
-        inset: 4px;
+        inset: 5px;
         border-radius: 50%;
         background: repeating-conic-gradient(
-          #dfe3e8 0deg 1.4deg,
-          transparent 1.4deg 9deg
+          rgba(15, 16, 18, 0.85) 0deg 1deg,
+          transparent 1deg 5deg
         );
-        -webkit-mask: radial-gradient(circle, transparent 72%, #000 74%);
-        mask: radial-gradient(circle, transparent 72%, #000 74%);
+        -webkit-mask: radial-gradient(circle, transparent 78%, #000 80%);
+        mask: radial-gradient(circle, transparent 78%, #000 80%);
       }
-      .lock-dial::after {
-        /* red index grip */
-        content: "";
+      .lock-hub {
         position: absolute;
         left: 50%;
-        top: 7px;
-        width: 5px;
-        height: 30px;
-        background: linear-gradient(#ff4d5e, #c8102e);
-        border-radius: 3px;
-        transform: translateX(-50%);
-        box-shadow: 0 0 3px rgba(0, 0, 0, 0.5);
+        top: 50%;
+        width: 38px;
+        height: 38px;
+        transform: translate(-50%, -50%);
+        border-radius: 50%;
+        background: radial-gradient(
+          circle at 50% 38%,
+          #cfd4dc,
+          #71767f 68%,
+          #3d4147
+        );
+        box-shadow:
+          inset 0 1px 2px rgba(255, 255, 255, 0.6),
+          inset 0 -2px 3px rgba(0, 0, 0, 0.5),
+          0 1px 3px rgba(0, 0, 0, 0.5);
+      }
+      .lock-grip {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 4px;
+        height: 32px;
+        transform: translate(-50%, -50%);
+        border-radius: 2px;
+        background: linear-gradient(#2a2d31, #0c0d0f);
+        box-shadow: 0 0 2px rgba(0, 0, 0, 0.6);
+        z-index: 2;
+      }
+      .lock-num {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        font: 700 8px/1 Arial, sans-serif;
+        color: #eef1f5;
+        text-shadow: 0 1px 1px rgba(0, 0, 0, 0.85);
+        z-index: 1;
       }
 
       /* ---- BlaiseEbuth's insults ---- */
@@ -817,6 +855,10 @@
         gap: 6px;
         justify-content: center;
         margin-top: 10px;
+      }
+      .tool-rack:empty {
+        display: none;
+        margin: 0;
       }
       .tool-btn {
         display: inline-flex;
@@ -1551,8 +1593,81 @@
         });
       }
 
+      // Build a real (stored, uncompressed) .zip in the browser — no library.
+      function crc32(bytes) {
+        let table = crc32._t;
+        if (!table) {
+          table = crc32._t = [];
+          for (let n = 0; n < 256; n++) {
+            let c = n;
+            for (let k = 0; k < 8; k++)
+              c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+            table[n] = c >>> 0;
+          }
+        }
+        let crc = 0xffffffff;
+        for (let i = 0; i < bytes.length; i++)
+          crc = (crc >>> 8) ^ table[(crc ^ bytes[i]) & 0xff];
+        return (crc ^ 0xffffffff) >>> 0;
+      }
+      function makeZip(filename, text) {
+        const enc = new TextEncoder();
+        const name = enc.encode(filename);
+        const data = enc.encode(text);
+        const crc = crc32(data);
+        const out = [];
+        const u16 = (v) => out.push(v & 0xff, (v >>> 8) & 0xff);
+        const u32 = (v) =>
+          out.push(
+            v & 0xff,
+            (v >>> 8) & 0xff,
+            (v >>> 16) & 0xff,
+            (v >>> 24) & 0xff,
+          );
+        const raw = (arr) => arr.forEach((b) => out.push(b));
+        // local file header
+        u32(0x04034b50); u16(20); u16(0); u16(0); u16(0); u16(0);
+        u32(crc); u32(data.length); u32(data.length);
+        u16(name.length); u16(0);
+        raw(name); raw(data);
+        const cdStart = out.length;
+        // central directory
+        u32(0x02014b50); u16(20); u16(20); u16(0); u16(0); u16(0); u16(0);
+        u32(crc); u32(data.length); u32(data.length);
+        u16(name.length); u16(0); u16(0); u16(0); u16(0); u32(0); u32(0);
+        raw(name);
+        const cdSize = out.length - cdStart;
+        // end of central directory
+        u32(0x06054b50); u16(0); u16(0); u16(1); u16(1);
+        u32(cdSize); u32(cdStart); u16(0);
+        return new Uint8Array(out);
+      }
+      function downloadVaultZip() {
+        const md =
+          "# Gotcha.\n\n" +
+          "Did you *actually* download a .zip file from a website run by " +
+          "self-proclaimed trolls... and then unzip it?\n\n" +
+          "Bold move. Historically, that is *exactly* how it happens.\n\n" +
+          "Good news: this one is (probably) harmless.\n" +
+          "Bad news: we now own all your competitive assets.\n\n" +
+          "— The Keeper of Competitive Assets, TrollerPact Security " +
+          "(we have no security)\n";
+        const blob = new Blob([makeZip("TOTALLY_SAFE_README.md", md)], {
+          type: "application/zip",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "competitive_assets.zip";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 3000);
+      }
+
       // Reusable: clicking turns the avatar into a combination lock. Drag the
-      // dial around; a full 360° turn in either direction unlocks the image.
+      // dial around; a full 360° turn in either direction unlocks the image
+      // (and "helpfully" downloads a .zip of his competitive assets).
       function attachLock(card) {
         card.addEventListener("click", () => {
           const img = card.querySelector("img");
@@ -1561,12 +1676,30 @@
 
           const lock = document.createElement("div");
           lock.className = "lock";
+          lock.style.width = img.offsetWidth + "px"; // match the avatar's box
+          lock.style.height = img.offsetHeight + "px";
           lock.innerHTML =
             '<div class="lock-mark"></div>' + '<div class="lock-dial"></div>';
           img.style.display = "none";
           img.insertAdjacentElement("afterend", lock);
 
           const dial = lock.querySelector(".lock-dial");
+          // realistic dial: center hub, a ring of numbers, and a grip slot
+          const hub = document.createElement("div");
+          hub.className = "lock-hub";
+          dial.appendChild(hub);
+          for (let n = 0; n < 100; n += 10) {
+            const num = document.createElement("div");
+            num.className = "lock-num";
+            num.textContent = n;
+            num.style.transform =
+              `translate(-50%, -50%) rotate(${(n / 100) * 360}deg) translateY(-40px)`;
+            dial.appendChild(num);
+          }
+          const grip = document.createElement("div");
+          grip.className = "lock-grip";
+          dial.appendChild(grip);
+
           let rotation = 0;
           let totalTurn = 0;
           let lastAngle = 0;
@@ -1601,6 +1734,7 @@
           }
           function unlock() {
             onUp();
+            downloadVaultZip(); // "here are his competitive assets" 😈
             dial.style.transition = "transform 0.4s cubic-bezier(.2,.8,.2,1)";
             dial.style.transform = `rotate(${rotation + 360}deg)`;
             lock.style.transition = "opacity 0.4s ease";
