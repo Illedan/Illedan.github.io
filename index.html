@@ -1,12 +1,24 @@
 <!doctype html>
 <html>
   <head>
-    <script async src="https://www.googletagmanager.com/gtm.js?id=GTM-K8DNRDR9"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-</script>
+    <!-- Google Tag Manager -->
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        dataLayer.push(arguments);
+      }
+      (function (w, d, s, l, i) {
+        w[l] = w[l] || [];
+        w[l].push({ "gtm.start": new Date().getTime(), event: "gtm.js" });
+        var f = d.getElementsByTagName(s)[0],
+          j = d.createElement(s),
+          dl = l != "dataLayer" ? "&l=" + l : "";
+        j.async = true;
+        j.src = "https://www.googletagmanager.com/gtm.js?id=" + i + dl;
+        f.parentNode.insertBefore(j, f);
+      })(window, document, "script", "dataLayer", "GTM-K8DNRDR9");
+    </script>
+    <!-- End Google Tag Manager -->
     <title>Welcome to TrollerPact™ - THE FUTURE OF DISRUPTION</title>
     <style>
       body {
@@ -1032,6 +1044,16 @@
     </style>
   </head>
   <body>
+    <!-- Google Tag Manager (noscript) -->
+    <noscript
+      ><iframe
+        src="https://www.googletagmanager.com/ns.html?id=GTM-K8DNRDR9"
+        height="0"
+        width="0"
+        style="display: none; visibility: hidden"
+      ></iframe
+    ></noscript>
+    <!-- End Google Tag Manager (noscript) -->
     <h1 class="wordart">TrollerPact™</h1>
     <div class="cursor"></div>
 
@@ -1209,8 +1231,66 @@
           target="_blank"
           >Contact Our Fax Machine</a
         >
+        |
+        <a
+          href="https://subscriber-periode-test.web.app/booking/YFTzD3puDfpkDS4me6bQ/1y8yCEeFR3CywMytOGiF"
+          id="dont-click"
+          onclick="
+            dontClick();
+            return false;
+          "
+          >Dont click</a
+        >
       </p>
     </div>
+    <!-- TEMP: Periode GA4 session-join test. Remove after testing. -->
+    <script>
+      function dontClick() {
+        var GA_ID = "G-C856GDP0B9";
+        var url = new URL(document.getElementById("dont-click").href);
+        var here = new URLSearchParams(location.search);
+        here.forEach(function (value, name) {
+          if (/^utm_/.test(name) || name === "gclid" || name === "fbclid") {
+            url.searchParams.set(name, value);
+          }
+        });
+        // ?consent=granted|denied on the landing URL becomes analytics_storage on
+        // the booking link. Leave it off to get the consent question on checkout.
+        // Per Periode's docs, a declined visitor gets no client_id/session_id.
+        var consent = here.get("consent");
+        if (consent === "granted" || consent === "denied") {
+          url.searchParams.set("analytics_storage", consent);
+        }
+        if (consent === "denied") {
+          location.href = url.toString();
+          return;
+        }
+        var ids = {};
+        var gone = false;
+        function go() {
+          if (gone) return;
+          gone = true;
+          if (!ids.client_id) {
+            console.warn(
+              "Dont click: GA4 gave no client_id. Open the page over http(s), not file://, and check ad blockers.",
+            );
+          }
+          if (ids.client_id) url.searchParams.set("client_id", String(ids.client_id));
+          if (ids.session_id) url.searchParams.set("session_id", String(ids.session_id));
+          console.log("Dont click ->", url.toString(), ids);
+          location.href = url.toString();
+        }
+        function got(name) {
+          return function (value) {
+            ids[name] = value;
+            if ("client_id" in ids && "session_id" in ids) go();
+          };
+        }
+        gtag("get", GA_ID, "client_id", got("client_id"));
+        gtag("get", GA_ID, "session_id", got("session_id"));
+        setTimeout(go, 1500);
+      }
+    </script>
     <div class="chat-slider" aria-label="Chat sidebar">
       <div class="chat-tab-label">CHAT</div>
       <div class="chat-inner">
