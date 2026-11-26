@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TrollerPact Onsite Summit 2027™ — Backers Wanted</title>
+    <style>
+      :root {
+        --cyan: #00ffff;
+        --magenta: #ff00ff;
+        --gold: #f2bb13;
+        --hot: #ff2d95;
+        --lime: #00ff88;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Comic Sans MS", cursive, sans-serif;
+        color: #e9f6ff;
+        text-align: center;
+        background:
+          radial-gradient(circle at 15% 0%, rgba(255, 0, 255, 0.35), transparent 45%),
+          radial-gradient(circle at 85% 10%, rgba(0, 255, 255, 0.35), transparent 45%),
+          radial-gradient(circle at 50% 100%, rgba(242, 187, 19, 0.25), transparent 55%),
+          #0a0a1f;
+        overflow-x: hidden;
+      }
+
+      /* ---- animated shiny top bar ---- */
+      .topbar {
+        font-size: 22px;
+        font-weight: bold;
+        color: #0a0a1f;
+        background: linear-gradient(90deg, var(--gold), var(--hot), var(--cyan), var(--gold));
+        background-size: 300% 100%;
+        padding: 10px;
+        letter-spacing: 1px;
+        animation: slide 6s linear infinite;
+      }
+      @keyframes slide {
+        to {
+          background-position: 300% 0;
+        }
+      }
+
+      marquee {
+        font-size: 22px;
+        color: #0a0a1f;
+        background: var(--lime);
+        padding: 6px 0;
+        font-weight: bold;
+      }
+
+      /* ---- hero ---- */
+      .hero {
+        padding: 50px 16px 30px;
+        position: relative;
+      }
+      .kicker {
+        display: inline-block;
+        font-size: 15px;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: var(--cyan);
+        border: 1px solid var(--cyan);
+        border-radius: 999px;
+        padding: 6px 18px;
+        margin-bottom: 20px;
+        box-shadow: 0 0 18px rgba(0, 255, 255, 0.5);
+      }
+      h1.wordart {
+        font-size: clamp(42px, 9vw, 104px);
+        font-weight: 900;
+        margin: 10px auto;
+        line-height: 1;
+        transform: rotate(-3deg);
+        background: linear-gradient(90deg, var(--gold), var(--hot), var(--cyan), var(--gold));
+        background-size: 300% 100%;
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        filter: drop-shadow(3px 4px 0 #000) drop-shadow(0 0 22px rgba(255, 45, 149, 0.7));
+        animation: slide 6s linear infinite;
+      }
+      .subhead {
+        font-size: clamp(18px, 3vw, 26px);
+        color: var(--magenta);
+        text-shadow: 0 0 10px rgba(255, 0, 255, 0.6);
+        margin: 6px auto 0;
+        max-width: 760px;
+      }
+
+      /* ---- big shiny date chips ---- */
+      .facts {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        justify-content: center;
+        margin: 34px auto 10px;
+        max-width: 820px;
+      }
+      .fact {
+        flex: 1 1 200px;
+        min-width: 180px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 2px solid rgba(255, 255, 255, 0.15);
+        border-radius: 18px;
+        padding: 20px 16px;
+        backdrop-filter: blur(4px);
+        box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.7);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+      .fact:hover {
+        transform: translateY(-6px) rotate(-1deg);
+        box-shadow: 0 18px 40px -8px var(--hot);
+      }
+      .fact .big {
+        font-size: 30px;
+        font-weight: 900;
+        color: var(--gold);
+      }
+      .fact .lil {
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #a9c7d8;
+        margin-top: 6px;
+      }
+
+      /* ---- primary CTA ---- */
+      .cta-wrap {
+        margin: 40px auto 10px;
+      }
+      .support-btn {
+        display: inline-block;
+        font-size: clamp(22px, 4vw, 32px);
+        font-weight: 900;
+        text-decoration: none;
+        color: #0a0a1f;
+        padding: 20px 46px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--gold), var(--hot), var(--cyan), var(--gold));
+        background-size: 300% 100%;
+        box-shadow:
+          0 0 0 4px rgba(255, 255, 255, 0.15),
+          0 18px 45px -10px var(--hot);
+        animation: slide 5s linear infinite, pulse 2.2s ease-in-out infinite;
+        transition: transform 0.15s ease;
+      }
+      .support-btn:hover {
+        transform: scale(1.06) rotate(-1deg);
+      }
+      @keyframes pulse {
+        0%, 100% {
+          box-shadow:
+            0 0 0 4px rgba(255, 255, 255, 0.15),
+            0 18px 45px -10px var(--hot);
+        }
+        50% {
+          box-shadow:
+            0 0 0 7px rgba(255, 255, 255, 0.28),
+            0 22px 60px -8px var(--cyan);
+        }
+      }
+      .cta-sub {
+        margin-top: 14px;
+        font-size: 14px;
+        color: #a9c7d8;
+      }
+
+      /* ---- sections ---- */
+      .section {
+        max-width: 900px;
+        margin: 60px auto;
+        padding: 0 16px;
+      }
+      h2 {
+        font-size: clamp(26px, 5vw, 40px);
+        display: inline-block;
+        color: #0a0a1f;
+        background: linear-gradient(90deg, var(--cyan), var(--lime));
+        padding: 8px 22px;
+        border-radius: 14px;
+        transform: rotate(-1.5deg);
+        box-shadow: 6px 6px 0 #000;
+      }
+      .lead {
+        font-size: 19px;
+        line-height: 1.6;
+        color: #d7e9f3;
+        max-width: 720px;
+        margin: 26px auto;
+      }
+
+      /* ---- sponsor tiers ---- */
+      .tiers {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 22px;
+        justify-content: center;
+        margin-top: 36px;
+      }
+      .tier {
+        flex: 1 1 240px;
+        max-width: 280px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 2px dashed rgba(255, 255, 255, 0.25);
+        border-radius: 20px;
+        padding: 26px 20px;
+        position: relative;
+        transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+      }
+      .tier:hover {
+        transform: translateY(-8px);
+        border-color: var(--gold);
+        box-shadow: 0 20px 50px -14px var(--gold);
+      }
+      .tier.flagship {
+        border-color: var(--gold);
+        box-shadow: 0 0 30px -4px rgba(242, 187, 19, 0.5);
+      }
+      .tier .badge {
+        position: absolute;
+        top: -14px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--hot);
+        color: #fff;
+        font-size: 11px;
+        font-weight: bold;
+        letter-spacing: 1px;
+        padding: 4px 12px;
+        border-radius: 999px;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+      .tier h3 {
+        font-size: 24px;
+        margin: 8px 0 4px;
+        color: var(--gold);
+      }
+      .tier .price {
+        font-size: 15px;
+        color: var(--cyan);
+        margin-bottom: 14px;
+      }
+      .tier ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        text-align: left;
+        font-size: 14px;
+        line-height: 1.6;
+        color: #d7e9f3;
+      }
+      .tier li::before {
+        content: "✦ ";
+        color: var(--lime);
+      }
+
+      /* ---- agenda ---- */
+      .agenda {
+        max-width: 640px;
+        margin: 30px auto 0;
+        text-align: left;
+      }
+      .slot {
+        display: flex;
+        gap: 18px;
+        align-items: baseline;
+        padding: 14px 18px;
+        background: rgba(255, 255, 255, 0.04);
+        border-left: 5px solid var(--hot);
+        border-radius: 0 12px 12px 0;
+        margin-bottom: 12px;
+      }
+      .slot .time {
+        font-weight: 900;
+        color: var(--gold);
+        white-space: nowrap;
+        min-width: 86px;
+      }
+      .slot .what {
+        color: #e9f6ff;
+      }
+
+      .fine {
+        font-size: 12px;
+        color: #7f93a3;
+        max-width: 700px;
+        margin: 10px auto;
+        line-height: 1.5;
+      }
+
+      .footer {
+        margin-top: 70px;
+        padding: 30px 16px 40px;
+        font-size: 14px;
+        color: #8aa0b0;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .footer a {
+        color: var(--cyan);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="topbar">
+      🚀 TROLLERPACT GOES PHYSICAL™ — FIRST EVER ONSITE SUMMIT 🚀
+    </div>
+    <marquee scrollamount="9">
+      🔥 Real humans! Real venue! Real trolls! Coming 2027! We just need
+      YOUR money to make it 100% real 🔥 BACKERS WANTED NOW 🔥
+    </marquee>
+
+    <!-- ===================== HERO ===================== -->
+    <header class="hero">
+      <span class="kicker">An Onsite Experience • Est. 2027</span>
+      <h1 class="wordart">TrollerPact<br />Summit 2027™</h1>
+      <p class="subhead">
+        The legends are leaving their keyboards. For <strong>one disruptive
+        weekend in 2027</strong>, the entire TrollerPact™ org chart
+        materializes IN PERSON — and we are looking for visionary backers to
+        fund the chaos.
+      </p>
+
+      <div class="facts">
+        <div class="fact">
+          <div class="big">2027</div>
+          <div class="lil">Pick your month on the form</div>
+        </div>
+        <div class="fact">
+          <div class="big">ONSITE</div>
+          <div class="lil">Venue reveal upon funding</div>
+        </div>
+        <div class="fact">
+          <div class="big">∞ Trolls</div>
+          <div class="lil">Legends · Golds · 1 bot</div>
+        </div>
+      </div>
+
+      <div class="cta-wrap">
+        <a
+          class="support-btn"
+          href="https://forms.gle/zfL6mSS5uNrBpVtz9"
+          target="_blank"
+          rel="noopener"
+          >💸 Support the Summit</a
+        >
+        <div class="cta-sub">
+          Sponsors, patrons &amp; believers in unnecessary innovation — tap in.
+        </div>
+      </div>
+    </header>
+
+    <!-- ===================== WHY FUND ===================== -->
+    <section class="section">
+      <h2>Why fund this?</h2>
+      <p class="lead">
+        For decades TrollerPact™ has disrupted the industry entirely online.
+        In 2027 we take the disruption <em>offline</em>: one room, one
+        projector, and a horde of competitive programmers who have only ever
+        met via chat. There will be talks nobody asked for, a leaderboard
+        nobody can verify, and at least one keynote delivered by a neural
+        network trained exclusively on insults. This does not pay for itself.
+        <strong>This pays for itself with your help.</strong>
+      </p>
+    </section>
+
+    <!-- ===================== SPONSOR TIERS ===================== -->
+    <section class="section">
+      <h2>Backer Tiers</h2>
+      <div class="tiers">
+        <div class="tier">
+          <h3>Wood Tier</h3>
+          <div class="price">A modest gesture</div>
+          <ul>
+            <li>Your name whispered once, offstage</li>
+            <li>Official TrollerPact™ "I Helped" feeling</li>
+            <li>Unlimited moral support (non-binding)</li>
+          </ul>
+        </div>
+
+        <div class="tier flagship">
+          <span class="badge">Most Disruptive</span>
+          <h3>Gold Tier</h3>
+          <div class="price">A serious commitment</div>
+          <ul>
+            <li>Logo on the projector between talks</li>
+            <li>Front-row seat near the snack table</li>
+            <li>Shoutout from the Supreme Executive Overlord</li>
+            <li>One (1) commemorative synergy cube</li>
+          </ul>
+        </div>
+
+        <div class="tier">
+          <h3>Legend Tier</h3>
+          <div class="price">A visionary act</div>
+          <ul>
+            <li>Naming rights to the coffee break</li>
+            <li>Co-sign the fabricated tournament bracket</li>
+            <li>Keynote slot (topic of your choosing*)</li>
+            <li>Eternal gratitude, notarized by a fax machine</li>
+          </ul>
+        </div>
+      </div>
+      <p class="fine">
+        *Topic subject to heckling by BlaiseEbuth. Synergy cubes are
+        conceptual. No refunds, only vibes.
+      </p>
+    </section>
+
+    <!-- ===================== AGENDA ===================== -->
+    <section class="section">
+      <h2>Tentative Agenda</h2>
+      <div class="agenda">
+        <div class="slot">
+          <span class="time">Day 1 · AM</span>
+          <span class="what">Registration, nametags, and arguing about whether MCTS was the right choice</span>
+        </div>
+        <div class="slot">
+          <span class="time">Day 1 · PM</span>
+          <span class="what">Keynote: "Why Your Code Works Locally But Not Here" — a live investigation</span>
+        </div>
+        <div class="slot">
+          <span class="time">Day 2 · AM</span>
+          <span class="what">Workshop: Hardcoding every test case (then the validators arrive)</span>
+        </div>
+        <div class="slot">
+          <span class="time">Day 2 · PM</span>
+          <span class="what">Panel: Middle Management schedules a meeting about the meeting</span>
+        </div>
+        <div class="slot">
+          <span class="time">Day 3</span>
+          <span class="what">The Great Onsite Leaderboard · closing ceremony · one (1) frog is released</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== FINAL CTA ===================== -->
+    <section class="section">
+      <h2>Make it real</h2>
+      <p class="lead">
+        A venue this disruptive requires funding this visionary. If you believe
+        the internet's #1 provider of disruptive synergy cubes deserves a
+        physical headquarters for one weekend in 2027 —
+        <strong>back us today.</strong>
+      </p>
+      <div class="cta-wrap">
+        <a
+          class="support-btn"
+          href="https://forms.gle/zfL6mSS5uNrBpVtz9"
+          target="_blank"
+          rel="noopener"
+          >💸 Support the Summit</a
+        >
+        <div class="cta-sub">Opens our official backer form. Takes ~2 minutes.</div>
+      </div>
+    </section>
+
+    <div class="footer">
+      <p>
+        ©1995–2095 TrollerPact, Inc. · Onsite Summit Division ·
+        <a href="index.html">← Back to HQ</a>
+      </p>
+      <p style="font-size: 12px; opacity: 0.7">
+        TrollerPact Summit 2027™ is contingent on funding, weather, and whether
+        anyone actually shows up.
+      </p>
+    </div>
+  </body>
+</html>
